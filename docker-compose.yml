@@ -1,0 +1,15 @@
+services:
+  database:
+    image: pgvector/pgvector:pg17 # Uses the recommended unified image
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: cartrita_ai_agents
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
