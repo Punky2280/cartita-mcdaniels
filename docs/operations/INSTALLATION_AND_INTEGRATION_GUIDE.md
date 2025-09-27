@@ -11,13 +11,40 @@ This document provides step-by-step instructions for installing and integrating 
 
 ---
 
+## Codacy CLI Quality Checks
+
+Our workflow requires running the Codacy CLI locally after any documentation or source edit. Install it once per machine using the helper script:
+
+```bash
+cd cartrita-mcdaniels-suarez
+./.codacy/cli.sh download
+```
+
+On Linux hosts without Windows Subsystem for Linux, create a lightweight wrapper so the CLI commands invoked by tooling (`wsl .codacy/cli.sh …`) still resolve:
+
+```bash
+mkdir -p ~/.local/bin
+printf '#!/usr/bin/env bash\n"$@"\n' > ~/.local/bin/wsl
+chmod +x ~/.local/bin/wsl
+```
+
+After installation, run quality checks per file:
+
+```bash
+wsl .codacy/cli.sh analyze path/to/changed-file --format sarif
+```
+
+> **Tip:** If no analyzer supports the file type, the CLI exits cleanly and prints “No tools support the specified file(s). Skipping analysis.”
+
+---
+
 ## 1. AGENTS_ARCHITECTURE.md
 
-### Overview
+### Overview (AGENTS_ARCHITECTURE.md)
 
 This file outlines the high-level architecture of the Cartrita AI OS, including its modular design and agent orchestration patterns.
 
-### Installation Steps
+### Installation Steps (AGENTS_ARCHITECTURE.md)
 
 1. Ensure you have Node.js 20+ installed.
 
@@ -44,11 +71,11 @@ This file outlines the high-level architecture of the Cartrita AI OS, including 
 
 ## 2. agent-architecture.md
 
-### Overview
+### Overview (agent-architecture.md)
 
 This file describes the agent architecture, including the supervisor and specialized agents such as ResearchAgent, CodeAgent, and ComputerUseAgent.
 
-### Installation Steps
+### Installation Steps (agent-architecture.md)
 
 1. Follow the steps in **AGENTS_ARCHITECTURE.md** to set up the base system.
 
@@ -68,11 +95,11 @@ This file describes the agent architecture, including the supervisor and special
 
 ## 3. README.md
 
-### Overview
+### Overview (README.md)
 
 This file provides an overview of the Cartrita AI Agents Monorepo, including its structure and quick start instructions.
 
-### Installation Steps
+### Installation Steps (README.md)
 
 1. Navigate to the monorepo directory:
 
@@ -108,11 +135,11 @@ This file provides an overview of the Cartrita AI Agents Monorepo, including its
 
 ## 4. MCP_SERVER_SETUP.md
 
-### Overview
+### Overview (MCP_SERVER_SETUP.md)
 
 This file provides setup instructions for non-Python MCP servers, including Node.js, PostgreSQL, and Redis servers.
 
-### Installation Steps
+### Installation Steps (MCP_SERVER_SETUP.md)
 
 #### Node.js MCP Server
 

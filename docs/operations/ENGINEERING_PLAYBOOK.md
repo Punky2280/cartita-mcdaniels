@@ -1628,6 +1628,50 @@ export function createTestMessage(overrides?: Partial<Message>): Message {
 }
 ```
 
+### Production Launch Automation Playbook
+
+The "Production Launch Enforcement" automation run is now our baseline for multi-agent handoffs that must reach deployment readiness. Reuse these guardrails whenever we dispatch orchestrated workstreams:
+
+**Global Validation Rules**
+- Every agent output must include headings named exactly `Sequential Thinking (7 steps)` and `MCP/Web Research Findings`.
+- Agents perform an internal self-check (up to two retries) and only emit the deliverable when both sections are populated.
+- If a section cannot be completed after retries, the agent records a bold `WARNING` inside `Risks & Mitigations` with remediation steps.
+- Deliverables must also cover production readiness (deployments, environment config, security/compliance, observability, rollback/DR) and a release timeline with accountable owners.
+- Collaboration is mandatory: reference sibling deliverables by path + heading and schedule at least two coordination touchpoints.
+- Testing Agent produces a single consolidated response; discard drafts that fail validation.
+
+**Execution Template**
+
+```text
+pnpm run ai:automate "Production Launch Enforcement Run v3" # See instructions/claude-automation-project.md for setup
+```
+
+Provide agents with explicit scaffolds so they fill in structured content instead of inventing headings. This excerpt shows the enforced layout:
+
+```markdown
+Sequential Thinking (7 steps)
+1. ...
+2. ...
+3. ...
+4. ...
+5. ...
+6. ...
+7. ...
+Final Recommendation: ...
+
+MCP/Web Research Findings
+- Context7: ...
+- Web: ...
+```
+
+Apply the same pattern for each downstream section (architecture blueprints, infrastructure plans, timelines, risks). Keep scaffolds in sync with the orchestrator prompt so agents self-validate before responding.
+
+**Operational Tips**
+- Run a quick spot check of agent outputs—if warnings appear, trigger another automation run or assign manual follow-up.
+- Mirror these rules in Documentation updates so release managers have a single source of truth.
+- Log each automation command in the release journal to preserve provenance for audits.
+- Install the Codacy CLI locally with `./.codacy/cli.sh download` so quality gates can run offline; on Linux environments without native `wsl`, add a lightweight wrapper (for example, create `~/.local/bin/wsl` that simply executes `"$@"`).
+
 ---
 
 ## 15. Reference
@@ -1740,6 +1784,7 @@ pnpm run preview                     # Preview build
 - [HuggingFace Transformers.js](https://huggingface.co/docs/hub/en/transformers-js)
 - [Deepgram SDK](https://developers.deepgram.com/docs/js-sdk)
 - [Octokit (GitHub)](https://octokit.github.io/rest.js/)
+
 - [pgvector Documentation](https://github.com/pgvector/pgvector)
 - [Fastify Documentation](https://fastify.dev/)
 - [Biome Linter](https://biomejs.dev/)
