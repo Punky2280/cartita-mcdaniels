@@ -1748,6 +1748,15 @@ pnpm run preview                     # Preview build
 
 ---
 
+## Related Documentation
+
+- **[Main README](../../README.md)** - Quick start and project overview
+- **[Agent Architecture](../architecture/agent-architecture.md)** - System design and multi-agent patterns  
+- **[MCP Server Setup](MCP_SERVER_SETUP.md)** - External service integrations
+- **[Installation Guide](INSTALLATION_AND_INTEGRATION_GUIDE.md)** - Step-by-step setup instructions
+
+---
+
 ## Conclusion
 
 This comprehensive Engineering Playbook provides everything needed to build, deploy, and maintain a production-ready AI agents system using the latest 2025 technologies. The combination of Node.js 22+, Biome, OpenAI Agents SDK, and unified PostgreSQL+pgvector creates a powerful, scalable foundation for AI agent orchestration.

@@ -3,9 +3,19 @@
         "cartrita",
         "Deepgram",
         "everart",
+        "gdrive",
+        "HNSW",
         "HUGGINGFACE",
+        "initdb",
+        "KUBECONFIG",
         "mcdaniels",
+        "ossp",
+        "pgvector",
         "SERPAPI",
-        "TAVILY"
+        "TAVILY",
+        "tsc",
+        "typebox",
+        "usermod",
+        "VARCHAR"
     ]
 }

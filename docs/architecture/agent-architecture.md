@@ -1,14 +1,14 @@
-# Cartrita AI OS Agent Architecture
+# Cartrita AI Agents Architecture
 
 ## Overview
 
-The Cartrita AI OS implements a sophisticated multi-agent architecture based on hierarchical orchestration patterns. The system uses a supervisor-agent model where a central GPT-4.1-powered supervisor coordinates specialized agents for different tasks.
+The Cartrita AI Agents system implements a sophisticated multi-agent architecture based on hierarchical orchestration patterns using Node.js and TypeScript. The system uses an orchestrator-agent model where a central orchestrator coordinates specialized agents for different tasks.
 
 ## Architecture Components
 
-### 1. Supervisor Orchestrator (`supervisor.py`)
+### 1. Agent Orchestrator (`src/core/Orchestrator.ts`)
 
-The supervisor serves as the central coordinator and uses GPT-4.1 to:
+The orchestrator serves as the central coordinator and uses modern AI APIs to:
 
 - **Agent Selection**: Intelligently routes user requests to appropriate specialized agents
 - **Task Coordination**: Manages complex multi-step tasks across different agents
@@ -17,58 +17,77 @@ The supervisor serves as the central coordinator and uses GPT-4.1 to:
 
 **Key Features:**
 
-- Hierarchical task delegation based on LangGraph supervisor patterns
+- Hierarchical task delegation using TypeScript interfaces
 - Multi-agent conversation management
-- Dynamic agent selection using LLM reasoning
+- Dynamic agent selection using AI reasoning
 - Comprehensive error handling and fallback mechanisms
 
-### 2. Specialized Agents
+### 2. Base Agent System
 
-#### Research Agent (`research/research_agent.py`)
+#### Base Agent Interface (`src/agents/base/BaseAgent.ts`)
+
+All agents extend the `BaseAgent` abstract class which provides:
+
+```typescript
+export abstract class BaseAgent {
+  abstract readonly name: string;
+  abstract execute(input: AgentInput): Promise<AgentResult>;
+}
+
+export type AgentResult = 
+  | { kind: 'ok'; data: unknown }
+  | { kind: 'error'; code: string; message: string };
+```
+
+### 3. Specialized Agent Types
+
+#### Research Agent
 
 - **Purpose**: Web search, information gathering, and research tasks
-- **Model**: GPT-5 with Tavily search integration
+
+- **Implementation**: TypeScript with external API integrations
+
 - **Capabilities:**
+
   - Academic research and fact-checking
   - Market analysis and trend research
   - Technical documentation research
-  - Real-time information gathering
+  - Real-time information gathering via Tavily/SerpAPI
 
-#### Code Agent (`code/code_agent.py`)
+#### Code Agent
 
 - **Purpose**: Code generation, analysis, and programming tasks
-- **Model**: GPT-5 optimized for coding
+
+- **Implementation**: TypeScript with AI model integration
+
 - **Capabilities**:
+
   - Multi-language code generation
   - Code review and optimization
   - Bug fixing and debugging
   - Architecture design and documentation
 
-#### Computer Use Agent (`computer_use/computer_use_agent.py`)
-
-- **Purpose**: System automation and computer interaction
-- **Model**: GPT-5 with safety constraints
-- **Capabilities**:
-  - File system operations
-  - Application automation
-  - System monitoring and diagnostics
-  - Secure command execution
-
-#### Knowledge Agent (`knowledge/knowledge_agent.py`)
+#### Knowledge Agent
 
 - **Purpose**: Information retrieval from knowledge bases
-- **Model**: GPT-5 with vector database integration
+
+- **Implementation**: TypeScript with vector database integration (pgvector)
+
 - **Capabilities**:
+
   - RAG-based document search
   - Knowledge base query optimization
   - Context-aware information retrieval
   - Document similarity analysis
 
-#### Task Agent (`task/task_agent.py`)
+#### Task Agent
 
 - **Purpose**: Task planning and project management
-- **Model**: GPT-5 for structured planning
+
+- **Implementation**: TypeScript for structured planning
+
 - **Capabilities**:
+
   - Project breakdown and planning
   - Dependency analysis and timeline creation
   - Risk assessment and mitigation
@@ -78,72 +97,96 @@ The supervisor serves as the central coordinator and uses GPT-4.1 to:
 
 ### Agent Initialization
 
-All agents are dynamically initialized by the supervisor with proper error handling:
+All agents are dynamically initialized by the orchestrator with proper error handling:
 
-```python
-def _initialize_agents(self) -> dict[AgentType, Any]:
-    """Initialize all specialized agents."""
-    try:
-        from cartrita.orchestrator.agents import (
-            ResearchAgent, CodeAgent, ComputerUseAgent,
-            KnowledgeAgent, TaskAgent
-        )
-        logger.info("Successfully imported all agents")
-    except ImportError as e:
-        logger.error(f"Failed to import agents: {str(e)}")
-        # Graceful degradation...
+```typescript
+interface AgentRegistry {
+  research: ResearchAgent;
+  code: CodeAgent;
+  knowledge: KnowledgeAgent;
+  task: TaskAgent;
+}
+
+class AgentOrchestrator {
+  private agents: AgentRegistry;
+
+  constructor() {
+    this.agents = this.initializeAgents();
+  }
+
+  private initializeAgents(): AgentRegistry {
+    try {
+      return {
+        research: new ResearchAgent(),
+        code: new CodeAgent(),
+        knowledge: new KnowledgeAgent(),
+        task: new TaskAgent(),
+      };
+    } catch (error) {
+      logger.error('Failed to initialize agents:', error);
+      throw new Error('Agent initialization failed');
+    }
+  }
+}
 ```
 
 ### Agent Selection Logic
 
-The supervisor uses GPT-4.1 to intelligently route requests:
+The orchestrator uses AI models to intelligently route requests:
 
-```python
-async def _select_appropriate_agent(
-    self, messages: list[dict[str, Any]]
-) -> AgentType | None:
-    """Use GPT-4.1 to select the most appropriate agent."""
-    # Analyzes user request and selects optimal agent
-    # Falls back to direct response if no agent matches
+```typescript
+async selectAppropriateAgent(
+  input: string
+): Promise<keyof AgentRegistry | null> {
+  // Analyzes user request and selects optimal agent
+  // Falls back to direct response if no agent matches
+  const analysis = await this.analyzeRequest(input);
+  return analysis.recommendedAgent;
+}
 ```
 
 ### Configuration Management
 
-Each agent is configured with appropriate models and API keys:
+Each agent is configured with appropriate models and API keys from environment variables:
 
-```python
-agent_configs = {
-    AgentType.RESEARCH: {
-        "class": ResearchAgent,
-        "model": self.settings.ai.agent_model,
-        "tavily_api_key": self.settings.external.tavily_api_key,
-    },
-    # ... other agents
+```typescript
+interface AgentConfig {
+  openaiApiKey: string;
+  anthropicApiKey?: string;
+  tavilyApiKey?: string;
+  deepgramApiKey?: string;
 }
+
+const config: AgentConfig = {
+  openaiApiKey: process.env.OPENAI_API_KEY!,
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+  tavilyApiKey: process.env.TAVILY_API_KEY,
+  deepgramApiKey: process.env.DEEPGRAM_API_KEY,
+};
 ```
 
 ## Multi-Agent Workflow
 
 ### 1. Request Processing
 
-1. User submits request via chat interface
-2. Supervisor receives and analyzes request
-3. GPT-4.1 determines optimal agent selection
+1. User submits request via REST API or WebSocket
+2. Orchestrator receives and analyzes request
+3. AI model determines optimal agent selection
 4. Request is routed to appropriate specialized agent
 
 ### 2. Agent Execution
 
 1. Specialized agent processes request using domain-specific logic
-2. Agent leverages appropriate tools and APIs
-3. Response is generated with metadata and confidence scores
-4. Results are returned to supervisor
+2. Agent leverages appropriate tools and external APIs
+3. Response is generated with structured result format
+4. Results are returned to orchestrator
 
 ### 3. Response Coordination
 
-1. Supervisor receives agent response
+1. Orchestrator receives agent response
 2. Additional processing or agent coordination if needed
 3. Final response is formatted and returned to user
-4. Conversation state is updated
+4. Conversation state is persisted to PostgreSQL database
 
 ## Error Handling & Resilience
 
@@ -170,51 +213,63 @@ agent_configs = {
 ### 1. Scalability
 
 - New agents can be added without modifying existing code
-- Horizontal scaling through multiple supervisor instances
+- Horizontal scaling through multiple orchestrator instances
 - Independent agent deployment and versioning
+- TypeScript provides compile-time guarantees for scaling
 
 ### 2. Maintainability
 
 - Clear separation of concerns between agents
 - Modular design enables independent development
-- Standardized agent interface and lifecycle management
+- Standardized TypeScript interfaces and lifecycle management
+- Strong typing reduces runtime errors
 
 ### 3. Flexibility
 
 - Dynamic agent selection based on request analysis
 - Multi-agent coordination for complex tasks
-- Easy configuration and feature toggling
+- Easy configuration through environment variables
+- Plugin-style architecture for custom agents
 
 ### 4. Reliability
 
 - Robust error handling and fallback mechanisms
 - Health monitoring and automatic recovery
 - Graceful degradation under failure conditions
+- PostgreSQL provides ACID compliance for data integrity
 
 ## Configuration
 
-Agents are configured through environment variables and settings:
+Agents are configured through environment variables:
 
-```python
+```bash
+# Database Configuration
+DATABASE_URL="postgresql://postgres:postgres123@localhost:5432/cartrita_ai_agents"
+
 # AI Model Configuration
-AGENT_MODEL=gpt-5
-OPENAI_API_KEY=<api_key>
+OPENAI_API_KEY=sk-proj-...
+ANTHROPIC_API_KEY=sk-ant-api03-...
 
 # External Service Keys
-TAVILY_API_KEY=<tavily_key>
+TAVILY_API_KEY=tvly-...
+DEEPGRAM_API_KEY=...
+GITHUB_TOKEN=ghp_...
 
-# Safety Settings
-COMPUTER_USE_SAFETY_MODE=strict
+# Server Configuration
+NODE_ENV=development
+PORT=3000
+LOG_LEVEL=info
 ```
 
 ## Monitoring & Debugging
 
 The system provides comprehensive logging and monitoring:
 
-- **Structured Logging**: All agent activities logged with structured data
+- **Structured Logging**: All agent activities logged with structured data using modern logging libraries
 - **Execution Metrics**: Performance tracking for agent selection and execution
-- **Error Tracking**: Detailed error information for debugging
-- **Health Checks**: Agent availability and status monitoring
+- **Error Tracking**: Detailed error information for debugging with stack traces
+- **Health Checks**: Agent availability and status monitoring via REST endpoints
+- **Database Monitoring**: PostgreSQL performance and query analysis
 
 ## Future Enhancements
 
@@ -222,6 +277,16 @@ The system provides comprehensive logging and monitoring:
 - **Dynamic Scaling**: Auto-scaling based on load and performance
 - **Advanced Coordination**: Multi-agent collaboration patterns
 - **Custom Agents**: Plugin system for user-defined agents
-- **Performance Optimization**: Caching and parallel execution
+- **Performance Optimization**: Caching with Redis and parallel execution
+- **Real-time Communication**: WebSocket-based agent streaming
+- **AI Model Flexibility**: Support for multiple AI providers (OpenAI, Anthropic, local models)
 
-This architecture provides a robust foundation for building sophisticated AI applications with specialized capabilities while maintaining system reliability and user experience.
+## Related Documentation
+
+- [Engineering Playbook](../operations/ENGINEERING_PLAYBOOK.md) - Complete technical implementation guide
+- [MCP Server Setup](../operations/MCP_SERVER_SETUP.md) - Model Context Protocol server configuration
+- [Installation Guide](../operations/INSTALLATION_AND_INTEGRATION_GUIDE.md) - Step-by-step setup instructions
+
+---
+
+This architecture provides a robust foundation for building sophisticated AI applications with specialized capabilities while maintaining system reliability and user experience using modern TypeScript and Node.js technologies.

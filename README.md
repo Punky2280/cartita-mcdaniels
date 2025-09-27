@@ -1,57 +1,180 @@
-# Cartrita AI Agents Monorepo 🤖
+# Cartrita AI Agents
 
-## Comprehensive AI Agents Orchestration System
+> A sophisticated multi-agent AI system built with Node.js, TypeScript, and modern AI APIs
 
 **Latest Stack (Node.js 22+ | TypeScript | Biome | 2025 APIs)**
 
-This monorepo contains a complete AI agents orchestration system built with:
+This system implements a comprehensive AI agents orchestration platform built with:
 
-- **Node.js 22+** with ES modules
-- **Biome** for super-fast linting/formatting (15x faster than ESLint)
-- **OpenAI Agents SDK** for multi-agent workflows
-- **TypeScript** with strict configuration
-- **PostgreSQL 17 + pgvector** unified container
-- **Fastify** backend with **React/Vite** frontend
+- **Node.js 22+** with TypeScript and modern ES modules
+- **Biome** for lightning-fast linting/formatting (15x faster than ESLint)
+- **Multi-agent architecture** with specialized agents for different tasks
+- **TypeScript** with strict type safety
+- **PostgreSQL 17 + pgvector** for vector similarity search
+- **Fastify** high-performance web framework
 
-### 🏗️ Project Structure
+## 🚀 Quick Start
 
-```
-cartrita-ai-agents-monorepo/
-├── apps/
-│   ├── backend/          # Fastify API server with OpenAI Agents
-│   └── frontend/         # React/Vite dashboard
-├── packages/
-│   ├── shared/           # Common types, utilities
-│   ├── ai-agents/        # Agent implementations
-│   └── database/         # Database schemas & migrations
-├── docs/
-│   └── ENGINEERING_PLAYBOOK.md  # Complete A-Z cookbook
-├── docker-compose.yml    # Unified PostgreSQL+pgvector setup
-├── biome.json           # Modern linting (not ESLint)
-└── package.json         # Node.js 22+ monorepo config
-```
-
-### 🚀 Quick Start
+Get up and running in 5 minutes:
 
 ```bash
-# Install dependencies
+# 1. Clone and install
+git clone https://github.com/Punky2280/cartrita-mcdaniels.git
+cd cartrita-mcdaniels
 pnpm install
 
-# Start database
+# 2. Setup environment
+cp .env.example .env
+# Edit .env with your API keys (see Configuration below)
+
+# 3. Start database
 pnpm run docker:up
 
-# Run migrations
+# 4. Run migrations
 pnpm run db:migrate
 
-# Start development
+# 5. Start development server
 pnpm run dev
 ```
 
-### 📚 Documentation
+## 📋 Prerequisites
 
-- **[Engineering Playbook](docs/ENGINEERING_PLAYBOOK.md)** - Complete A-Z cookbook with all integrations
-- **API Documentation** - Auto-generated Swagger/OpenAPI docs
-- **Agent Examples** - Multi-agent workflow examples
+- **Node.js 22+** (LTS recommended)
+- **pnpm** (package manager)
+- **Docker** (for PostgreSQL database)
+- **API Keys** (OpenAI, optional: Anthropic, Tavily, etc.)
+
+## 🏗️ Architecture
+
+The system uses a **multi-agent orchestration pattern** with specialized agents:
+
+- **Research Agent**: Web search and information gathering
+- **Code Agent**: Code generation and analysis  
+- **Knowledge Agent**: Document retrieval and RAG
+- **Task Agent**: Project planning and management
+
+Each agent extends a common `BaseAgent` interface and communicates through a central orchestrator.
+
+## ⚙️ Configuration
+
+Required environment variables in `.env`:
+
+```bash
+# Database (PostgreSQL with pgvector)
+DATABASE_URL="postgresql://postgres:postgres123@localhost:5432/cartrita_ai_agents"
+
+# Core AI API (required)
+OPENAI_API_KEY=sk-proj-...
+
+# Optional AI APIs
+ANTHROPIC_API_KEY=sk-ant-api03-...
+
+# External Services (optional)
+TAVILY_API_KEY=tvly-...           # Web search
+DEEPGRAM_API_KEY=...              # Speech services
+GITHUB_TOKEN=ghp_...              # GitHub integration
+
+# Server
+NODE_ENV=development
+PORT=3000
+LOG_LEVEL=info
+```
+
+## �️ Development
+
+```bash
+# Start development server with hot reload
+pnpm run dev
+
+# Run tests
+pnpm test
+
+# Build for production
+pnpm run build
+
+# Check code quality
+pnpm run check
+
+# Database operations
+pnpm run db:migrate    # Run migrations
+pnpm run db:studio     # Open Drizzle Studio
+```
+
+## 📚 Documentation
+
+- **[Architecture Overview](docs/architecture/agent-architecture.md)** - System design and agent patterns
+- **[Engineering Playbook](docs/operations/ENGINEERING_PLAYBOOK.md)** - Complete technical guide
+- **[MCP Server Setup](docs/operations/MCP_SERVER_SETUP.md)** - External service integrations
+- **[Installation Guide](docs/operations/INSTALLATION_AND_INTEGRATION_GUIDE.md)** - Detailed setup instructions
+
+## 🚢 Deployment
+
+```bash
+# Using Docker Compose
+docker compose up -d
+
+# Manual production build
+pnpm run build
+NODE_ENV=production pnpm start
+```
+
+## 🧪 Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Runtime** | Node.js 22+ | JavaScript runtime |
+| **Language** | TypeScript | Type safety |
+| **Framework** | Fastify | High-performance web server |
+| **Database** | PostgreSQL + pgvector | Data storage with vector search |
+| **AI Integration** | OpenAI, Anthropic | Agent intelligence |
+| **Code Quality** | Biome | Linting and formatting |
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### "Failed to connect to database"
+
+```bash
+# Ensure PostgreSQL is running
+pnpm run docker:up
+```
+
+#### "Missing API key errors"
+
+```bash
+# Check your .env file has required keys
+cat .env | grep OPENAI_API_KEY
+```
+
+#### "Port 3000 already in use"
+
+```bash
+# Change port in .env
+echo "PORT=3001" >> .env
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the ISC License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- **Documentation**: Check the [docs/](docs/) folder
+- **Issues**: Open a [GitHub issue](https://github.com/Punky2280/cartrita-mcdaniels/issues)
+- **Discussions**: Join our [GitHub discussions](https://github.com/Punky2280/cartrita-mcdaniels/discussions)
+
+---
+
+*Built with ❤️ using TypeScript and modern AI APIs*
 
 ### 🔧 Technology Stack
 

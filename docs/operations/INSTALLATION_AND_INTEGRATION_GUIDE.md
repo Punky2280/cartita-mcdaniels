@@ -1,14 +1,13 @@
 # Installation and Integration Guide
 
-This document provides step-by-step instructions for installing and integrating the components and methods described in the following files:
+> ⚠️ **Note**: This guide references the main project setup. For the most up-to-date quick start instructions, see the [main README](../../README.md).
 
-1. **AGENTS_ARCHITECTURE.md**
+This document provides step-by-step instructions for installing and integrating the Cartrita AI Agents system described in the following documentation:
 
-1. **agent-architecture.md**
-
-1. **README.md**
-
-1. **MCP_SERVER_SETUP.md**
+1. **[Main README](../../README.md)** - Quick start and overview
+2. **[Agent Architecture](../architecture/agent-architecture.md)** - System design and patterns  
+3. **[Engineering Playbook](ENGINEERING_PLAYBOOK.md)** - Complete technical guide
+4. **[MCP Server Setup](MCP_SERVER_SETUP.md)** - External service integrations
 
 ---
 
