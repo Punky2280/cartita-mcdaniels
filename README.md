@@ -100,6 +100,39 @@ pnpm run db:migrate    # Run migrations
 pnpm run db:studio     # Open Drizzle Studio
 ```
 
+## 🤖 Claude Terminal Integration
+
+This project includes comprehensive Claude AI terminal integration, independent of VS Code extensions:
+
+```bash
+# Quick Claude access
+pnpm claude                                    # Interactive Claude session
+pnpm claude -p "Analyze this TypeScript code" # Single query mode
+
+# Code analysis and review
+pnpm claude:analyze src/main.ts              # Analyze specific file
+pnpm claude:review --diff                    # Review git changes
+pnpm claude:docs src/agents/BaseAgent.ts    # Generate documentation
+
+# Advanced usage
+./scripts/claude-launch.sh --model opus "Complex architectural question"
+./scripts/claude-review.sh --staged         # Review staged changes
+```
+
+**Features:**
+- **Terminal-Only Operation**: No VS Code extension dependencies
+- **Project Context**: Automatic project understanding and TypeScript awareness
+- **Secure API Key Management**: Environment-based configuration
+- **Multiple Models**: Choose between Claude Sonnet, Opus, and Haiku
+- **Scriptable Interface**: Perfect for automation and CI/CD integration
+
+**Quick Setup:**
+1. Install Claude CLI: `npm install -g @anthropic-ai/claude-code`
+2. Add your API key to `.env`: `ANTHROPIC_API_KEY=sk-ant-api03-...`
+3. Start using: `pnpm claude`
+
+For complete setup instructions, see: [`instructions/claude-terminal-setup.md`](instructions/claude-terminal-setup.md)
+
 ## 📚 Documentation
 
 - **[Architecture Overview](docs/architecture/agent-architecture.md)** - System design and agent patterns

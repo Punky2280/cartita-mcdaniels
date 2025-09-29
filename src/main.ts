@@ -8,14 +8,25 @@ import 'dotenv/config';
 import databasePlugin from './plugins/database.js';
 import corsPlugin from './plugins/cors.js';
 import authPlugin from './plugins/auth.js';
+import apiMiddlewarePlugin from './plugins/api-middleware.js';
+import securityPlugin from './plugins/security.js';
 
 // Import routes
 import healthRoutes from './routes/health.js';
 import agentRoutes from './routes/agents.js';
+import aiRoutes from './routes/ai.js';
+import context7Routes from './routes/context7.js';
+import webhookRoutes from './routes/webhooks.js';
+import chatRoutes from './routes/chat.js';
+
+const env = process.env;
+const isDevelopment = env['NODE_ENV'] === 'development';
+const packageVersion = env['npm_package_version'] ?? '1.0.0';
+const logLevel = env['LOG_LEVEL'] ?? 'info';
 
 const server = Fastify({
-  logger: process.env['NODE_ENV'] === 'development' ? {
-    level: process.env['LOG_LEVEL'] || 'info',
+  logger: isDevelopment ? {
+    level: logLevel,
     transport: {
       target: 'pino-pretty',
       options: {
@@ -25,7 +36,7 @@ const server = Fastify({
       }
     }
   } : {
-    level: process.env['LOG_LEVEL'] || 'info'
+    level: logLevel
   },
   trustProxy: true,
   disableRequestLogging: false,
@@ -43,11 +54,11 @@ await server.register(fastifySwagger, {
     info: {
       title: 'Cartrita McDaniels Suarez API',
       description: 'Advanced AI Agent Management System',
-      version: process.env['npm_package_version'] || '1.0.0'
+      version: packageVersion
     },
     servers: [
       {
-        url: process.env['API_BASE_URL'] || 'http://localhost:3000',
+        url: env['API_BASE_URL'] ?? 'http://localhost:3000',
         description: 'Development server'
       }
     ],
@@ -78,61 +89,43 @@ await server.register(fastifySwaggerUi, {
 });
 
 // Register plugins
+await server.register(securityPlugin, {
+  threatDetection: {
+    enabled: true,
+    blockSuspicious: !isDevelopment,
+    logAllRequests: isDevelopment,
+  },
+  inputValidation: {
+    enabled: true,
+    maxBodySize: '10mb',
+    maxQueryStringSize: 2048,
+  },
+});
 await server.register(corsPlugin);
 await server.register(databasePlugin);
 await server.register(authPlugin);
+await server.register(apiMiddlewarePlugin);
 
 // Register routes
 await server.register(healthRoutes);
 await server.register(agentRoutes, { prefix: '/api/v1/agents' });
+await server.register(aiRoutes, { prefix: '/api/v1/ai' });
+await server.register(context7Routes, { prefix: '/api/v1/context7' });
+await server.register(webhookRoutes, { prefix: '/api/v1/webhooks' });
+await server.register(chatRoutes, { prefix: '/api/v1/chat' });
 
 // Root route
-server.get('/', async (request, reply) => {
+server.get('/', async (_request, _reply) => {
   return {
     name: 'Cartrita McDaniels Suarez API',
-    version: process.env['npm_package_version'] || '1.0.0',
-    environment: process.env['NODE_ENV'] || 'development',
+    version: packageVersion,
+    environment: env['NODE_ENV'] ?? 'development',
     documentation: '/docs',
     health: '/health'
   };
 });
 
-// Global error handler
-server.setErrorHandler(async (error, request, reply) => {
-  server.log.error(error);
-
-  if (error.validation) {
-    return reply.status(400).send({
-      error: {
-        code: 'VALIDATION_ERROR',
-        message: 'Request validation failed',
-        details: error.validation,
-        timestamp: new Date().toISOString(),
-        path: request.url
-      }
-    });
-  }
-
-  if (error.statusCode && error.statusCode < 500) {
-    return reply.status(error.statusCode).send({
-      error: {
-        code: error.code || 'CLIENT_ERROR',
-        message: error.message,
-        timestamp: new Date().toISOString(),
-        path: request.url
-      }
-    });
-  }
-
-  return reply.status(500).send({
-    error: {
-      code: 'INTERNAL_SERVER_ERROR',
-      message: 'An internal server error occurred',
-      timestamp: new Date().toISOString(),
-      path: request.url
-    }
-  });
-});
+// Note: Error handler is managed by the security plugin to avoid override warnings
 
 // Graceful shutdown
 const gracefulShutdown = async (signal: string) => {
@@ -143,7 +136,7 @@ const gracefulShutdown = async (signal: string) => {
     server.log.info('Server closed successfully');
     process.exit(0);
   } catch (error) {
-    server.log.error('Error during shutdown:', error);
+    server.log.error(`Error during shutdown: ${String(error)}`);
     process.exit(1);
   }
 };
@@ -153,9 +146,10 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 const start = async () => {
   try {
-    const port = Number(process.env['PORT']) || 3000;
-    const host = process.env['HOST'] || '0.0.0.0';
-    
+    const portValue = env['PORT'];
+    const port = portValue ? Number(portValue) : 3002; // Changed default to 3002
+    const host = env['HOST'] ?? '0.0.0.0';
+
     await server.listen({ port, host });
     server.log.info(`Server running on http://${host}:${port}`);
     server.log.info(`API Documentation available at http://${host}:${port}/docs`);

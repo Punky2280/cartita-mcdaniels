@@ -1,15 +1,5 @@
 {
   "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem"
-      ],
-      "env": {
-        "NODE_PATH": "/home/robbie/cartrita-mcdaniels-suarez"
-      }
-    },
     "github": {
       "command": "npx",
       "args": [
@@ -18,57 +8,23 @@
       ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
-      }
-    },
-    "postgres": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-postgres"
-      ],
-      "env": {
-        "POSTGRES_CONNECTION_STRING": "${DATABASE_URL}"
-      }
-    },
-    "web-search": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-web-search"
-      ],
-      "env": {
-        "TAVILY_API_KEY": "${TAVILY_API_KEY}",
-        "SERPAPI_API_KEY": "${SERPAPI_API_KEY}"
-      }
-    },
-    "sequential-thinking": {
-      "command": "python",
-      "args": [
-        "/home/robbie/cartrita-mcdaniels-suarez/mcp-servers/sequential-thinking/src/server.py"
-      ],
-      "env": {
-        "OPENAI_API_KEY": "${OPENAI_API_KEY}",
-        "LOG_LEVEL": "${LOG_LEVEL}"
-      }
-    },
-    "openai": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-openai"
-      ],
-      "env": {
-        "OPENAI_API_KEY": "${OPENAI_API_KEY}"
-      }
-    },
-    "anthropic": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-anthropic"
-      ],
-      "env": {
-        "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}"
+      },
+      "config": {
+        "priority": 1,
+        "timeout": 30000,
+        "retryAttempts": 3,
+        "retryDelay": 1000,
+        "healthCheckInterval": 60000,
+        "circuitBreaker": {
+          "failureThreshold": 5,
+          "resetTimeout": 30000
+        },
+        "rateLimit": {
+          "requests": 5000,
+          "window": 3600000
+        },
+        "category": "version-control",
+        "critical": true
       }
     },
     "memory": {
@@ -79,6 +35,23 @@
       ],
       "env": {
         "DATABASE_URL": "${DATABASE_URL}"
+      },
+      "config": {
+        "priority": 1,
+        "timeout": 15000,
+        "retryAttempts": 3,
+        "retryDelay": 500,
+        "healthCheckInterval": 30000,
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "resetTimeout": 15000
+        },
+        "rateLimit": {
+          "requests": 1000,
+          "window": 60000
+        },
+        "category": "storage",
+        "critical": true
       }
     },
     "brave-search": {
@@ -88,7 +61,24 @@
         "@modelcontextprotocol/server-brave-search"
       ],
       "env": {
-        "BRAVE_API_KEY": "${BRAVE_API_KEY:-}"
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      },
+      "config": {
+        "priority": 2,
+        "timeout": 10000,
+        "retryAttempts": 2,
+        "retryDelay": 2000,
+        "healthCheckInterval": 120000,
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "resetTimeout": 60000
+        },
+        "rateLimit": {
+          "requests": 100,
+          "window": 60000
+        },
+        "category": "search",
+        "critical": false
       }
     },
     "everart": {
@@ -99,69 +89,23 @@
       ],
       "env": {
         "EVERART_API_KEY": "${EVERART_API_KEY:-}"
-      }
-    },
-    "playwright": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-playwright"
-      ],
-      "env": {
-        "NODE_PATH": "/home/robbie/cartrita-mcdaniels-suarez"
-      }
-    },
-    "sqlite": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sqlite"
-      ],
-      "env": {
-        "SQLITE_DB_PATH": "${SQLITE_DB_PATH:-./data/local.db}"
-      }
-    },
-    "puppeteer": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-puppeteer"
-      ],
-      "env": {
-        "NODE_PATH": "/home/robbie/cartrita-mcdaniels-suarez"
-      }
-    },
-    "fetch": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-fetch"
-      ],
-      "env": {
-        "USER_AGENT": "Cartrita AI Agent/1.0"
-      }
-    },
-    "slack": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-slack"
-      ],
-      "env": {
-        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN:-}",
-        "SLACK_USER_TOKEN": "${SLACK_USER_TOKEN:-}"
-      }
-    },
-    "google-drive": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-gdrive"
-      ],
-      "env": {
-        "GOOGLE_DRIVE_CLIENT_ID": "${GOOGLE_DRIVE_CLIENT_ID:-}",
-        "GOOGLE_DRIVE_CLIENT_SECRET": "${GOOGLE_DRIVE_CLIENT_SECRET:-}",
-        "GOOGLE_DRIVE_REFRESH_TOKEN": "${GOOGLE_DRIVE_REFRESH_TOKEN:-}"
+      },
+      "config": {
+        "priority": 3,
+        "timeout": 20000,
+        "retryAttempts": 2,
+        "retryDelay": 3000,
+        "healthCheckInterval": 300000,
+        "circuitBreaker": {
+          "failureThreshold": 2,
+          "resetTimeout": 120000
+        },
+        "rateLimit": {
+          "requests": 50,
+          "window": 300000
+        },
+        "category": "image-generation",
+        "critical": false
       }
     },
     "gitlab": {
@@ -173,65 +117,108 @@
       "env": {
         "GITLAB_PERSONAL_ACCESS_TOKEN": "${GITLAB_TOKEN:-}",
         "GITLAB_API_URL": "${GITLAB_API_URL:-https://gitlab.com/api/v4}"
+      },
+      "config": {
+        "priority": 2,
+        "timeout": 15000,
+        "retryAttempts": 3,
+        "retryDelay": 1500,
+        "healthCheckInterval": 120000,
+        "circuitBreaker": {
+          "failureThreshold": 4,
+          "resetTimeout": 45000
+        },
+        "rateLimit": {
+          "requests": 2000,
+          "window": 3600000
+        },
+        "category": "version-control",
+        "critical": false
       }
     },
-    "docker": {
+    "filesystem": {
       "command": "npx",
       "args": [
         "-y",
-        "@modelcontextprotocol/server-docker"
+        "@modelcontextprotocol/server-filesystem",
+        "/home/robbie/cartrita-mcdaniels-suarez/src",
+        "/home/robbie/cartrita-mcdaniels-suarez/scripts",
+        "/home/robbie/cartrita-mcdaniels-suarez/docs",
+        "/home/robbie/cartrita-mcdaniels-suarez/tests",
+        "/tmp"
       ],
-      "env": {
-        "DOCKER_HOST": "${DOCKER_HOST:-unix:///var/run/docker.sock}"
+      "env": {},
+      "config": {
+        "priority": 1,
+        "timeout": 5000,
+        "retryAttempts": 2,
+        "retryDelay": 200,
+        "healthCheckInterval": 60000,
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "resetTimeout": 10000
+        },
+        "rateLimit": {
+          "requests": 1000,
+          "window": 60000
+        },
+        "category": "filesystem",
+        "critical": true
       }
     },
-    "kubernetes": {
+    "context7": {
       "command": "npx",
       "args": [
         "-y",
-        "@modelcontextprotocol/server-kubernetes"
+        "@upstash/context7-mcp",
+        "--api-key",
+        "${CONTEXT7_API_KEY:-demo}"
       ],
-      "env": {
-        "KUBECONFIG": "${KUBECONFIG:-~/.kube/config}"
+      "env": {},
+      "config": {
+        "priority": 1,
+        "timeout": 20000,
+        "retryAttempts": 3,
+        "retryDelay": 2000,
+        "healthCheckInterval": 60000,
+        "circuitBreaker": {
+          "failureThreshold": 3,
+          "resetTimeout": 30000
+        },
+        "rateLimit": {
+          "requests": 200,
+          "window": 300000
+        },
+        "category": "documentation",
+        "critical": false
       }
-    },
-    "todoist": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-todoist"
-      ],
-      "env": {
-        "TODOIST_API_TOKEN": "${TODOIST_API_TOKEN:-}"
-      }
-    },
-    "notion": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-notion"
-      ],
-      "env": {
-        "NOTION_API_KEY": "${NOTION_API_KEY:-}",
-        "NOTION_DATABASE_ID": "${NOTION_DATABASE_ID:-}"
-      }
-    },
-    "time": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-time"
-      ]
-    },
-    "everything": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-everything"
-      ],
-      "env": {
-        "EVERYTHING_API_URL": "${EVERYTHING_API_URL:-http://localhost:8080}"
-      }
+    }
+  },
+  "connectionPool": {
+    "maxConnections": 20,
+    "minConnections": 5,
+    "connectionTimeout": 30000,
+    "idleTimeout": 300000,
+    "maxRetries": 3,
+    "retryDelay": 1000,
+    "healthCheckInterval": 60000
+  },
+  "monitoring": {
+    "enabled": true,
+    "metricsInterval": 30000,
+    "alertThresholds": {
+      "responseTime": 5000,
+      "errorRate": 0.05,
+      "availabilityRate": 0.95
+    }
+  },
+  "security": {
+    "enableTLS": true,
+    "certificateValidation": true,
+    "maxRequestSize": "10mb",
+    "rateLimitGlobal": {
+      "requests": 10000,
+      "window": 3600000
     }
   }
 }

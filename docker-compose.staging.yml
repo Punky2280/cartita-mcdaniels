@@ -1,0 +1,241 @@
+# Docker Compose for Staging Environment
+version: '3.8'
+
+services:
+  # PostgreSQL Database with pgvector
+  database:
+    image: pgvector/pgvector:pg17
+    container_name: cartrita-db-staging
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-cartrita_ai_agents_staging}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data_staging:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-cartrita_ai_agents_staging}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cartrita-staging
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: cartrita-redis-staging
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    command: >
+      sh -c "
+        if [ -n '${REDIS_PASSWORD}' ]; then
+          redis-server --requirepass ${REDIS_PASSWORD}
+        else
+          redis-server
+        fi
+      "
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data_staging:/data
+    restart: unless-stopped
+    healthcheck:
+      test: >
+        sh -c "
+          if [ -n '${REDIS_PASSWORD}' ]; then
+            redis-cli -a ${REDIS_PASSWORD} ping
+          else
+            redis-cli ping
+          fi
+        "
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cartrita-staging
+
+  # MCP Servers Container
+  mcp-servers:
+    build:
+      context: .
+      dockerfile: docker/mcp-servers/Dockerfile
+    container_name: cartrita-mcp-staging
+    environment:
+      - NODE_ENV=staging
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - BRAVE_API_KEY=${BRAVE_API_KEY}
+      - EVERART_API_KEY=${EVERART_API_KEY}
+      - GITLAB_TOKEN=${GITLAB_TOKEN}
+      - GITLAB_API_URL=${GITLAB_API_URL:-https://gitlab.com/api/v4}
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@database:5432/${DB_NAME:-cartrita_ai_agents_staging}
+      - ALLOWED_DIRECTORIES=/tmp,/var/tmp,/app/data
+      - SQLITE_DATABASE_PATH=/app/data/mcp.db
+    volumes:
+      - mcp_logs_staging:/app/logs
+      - mcp_data_staging:/app/data
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - cartrita-staging
+
+  # Main Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: cartrita-app-staging
+    environment:
+      - NODE_ENV=staging
+      - PORT=3001
+      - HOST=0.0.0.0
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD}@database:5432/${DB_NAME:-cartrita_ai_agents_staging}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FIGMA_ACCESS_TOKEN=${FIGMA_ACCESS_TOKEN}
+      - CODACY_PROJECT_TOKEN=${CODACY_PROJECT_TOKEN}
+      - DB_POOL_MAX=${DB_POOL_MAX:-20}
+      - DB_IDLE_TIMEOUT=${DB_IDLE_TIMEOUT:-30}
+      - DB_CONNECT_TIMEOUT=${DB_CONNECT_TIMEOUT:-10}
+      - DB_MAX_LIFETIME=${DB_MAX_LIFETIME:-3600}
+    ports:
+      - "3002:3001"
+    volumes:
+      - app_logs_staging:/app/logs
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mcp-servers:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    networks:
+      - cartrita-staging
+
+  # Nginx reverse proxy for staging
+  nginx:
+    image: nginx:alpine
+    container_name: cartrita-nginx-staging
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/staging.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - nginx_logs_staging:/var/log/nginx
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - cartrita-staging
+
+  # Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cartrita-prometheus-staging
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/staging.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data_staging:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - cartrita-staging
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cartrita-grafana-staging
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data_staging:/var/lib/grafana
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - cartrita-staging
+
+  # Node Exporter for system metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: cartrita-node-exporter-staging
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    networks:
+      - cartrita-staging
+
+volumes:
+  postgres_data_staging:
+    driver: local
+  redis_data_staging:
+    driver: local
+  mcp_logs_staging:
+    driver: local
+  mcp_data_staging:
+    driver: local
+  app_logs_staging:
+    driver: local
+  nginx_logs_staging:
+    driver: local
+  prometheus_data_staging:
+    driver: local
+  grafana_data_staging:
+    driver: local
+
+networks:
+  cartrita-staging:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.21.0.0/16

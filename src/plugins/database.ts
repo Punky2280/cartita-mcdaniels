@@ -1,4 +1,4 @@
-import { FastifyPluginAsync, FastifyPluginCallback } from 'fastify';
+import type { FastifyPluginAsync, } from 'fastify';
 import fp from 'fastify-plugin';
 import { db } from '../database/connection.js';
 
@@ -19,7 +19,7 @@ const databasePlugin: FastifyPluginAsync = async (fastify) => {
       await db.execute('SELECT 1 as health_check');
       fastify.log.info('Database connection established');
     } catch (error) {
-      fastify.log.error('Database connection failed:', error);
+      fastify.log.error(`Database connection failed: ${String(error)}`);
       throw error;
     }
   });

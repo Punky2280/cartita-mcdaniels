@@ -1,15 +1,22 @@
+# Default Docker Compose (extends development)
+include:
+  - docker-compose.dev.yml
+
 services:
-  database:
-    image: pgvector/pgvector:pg17 # Uses the recommended unified image
+  # Override for quick local development
+  app:
+    command: >
+      sh -c "
+        pnpm install &&
+        pnpm run db:migrate &&
+        pnpm run dev
+      "
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
-      POSTGRES_DB: cartrita_ai_agents
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
+      - NODE_ENV=development
+      - PORT=3001
+      - DATABASE_URL=postgresql://postgres:postgres123@database:5432/cartrita_ai_agents
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
 
 volumes:
   postgres_data:

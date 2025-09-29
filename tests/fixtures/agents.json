@@ -1,0 +1,77 @@
+{
+  "mockAgent": {
+    "id": "test-agent-001",
+    "name": "test-agent",
+    "description": "A test agent for unit testing",
+    "capabilities": ["code-analysis", "documentation"],
+    "config": {
+      "maxTokens": 1000,
+      "temperature": 0.7
+    }
+  },
+  "orchestratorWorkflow": {
+    "id": "test-workflow-001",
+    "name": "test-workflow",
+    "description": "A test workflow for integration testing",
+    "steps": [
+      {
+        "agent": "test-agent",
+        "action": "analyze",
+        "input": {
+          "code": "console.log('Hello, World!');"
+        }
+      }
+    ]
+  },
+  "apiResponses": {
+    "openai": {
+      "choices": [
+        {
+          "message": {
+            "content": "This is a mock OpenAI response for testing purposes."
+          }
+        }
+      ],
+      "usage": {
+        "prompt_tokens": 25,
+        "completion_tokens": 15,
+        "total_tokens": 40
+      }
+    },
+    "anthropic": {
+      "content": [
+        {
+          "type": "text",
+          "text": "This is a mock Anthropic response for testing purposes."
+        }
+      ],
+      "usage": {
+        "input_tokens": 25,
+        "output_tokens": 15
+      }
+    }
+  },
+  "database": {
+    "users": [
+      {
+        "id": "test-user-001",
+        "email": "test@example.com",
+        "name": "Test User",
+        "role": "user",
+        "created_at": "2024-01-01T00:00:00.000Z"
+      }
+    ],
+    "agents": [
+      {
+        "id": "test-db-agent-001",
+        "name": "database-test-agent",
+        "description": "An agent stored in the test database",
+        "config": {
+          "provider": "openai",
+          "model": "gpt-4o"
+        },
+        "created_at": "2024-01-01T00:00:00.000Z"
+      }
+    ]
+  }
+}

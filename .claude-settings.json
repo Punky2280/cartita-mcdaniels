@@ -1,0 +1,26 @@
+{
+  "model": "sonnet",
+  "allowedTools": [
+    "Bash",
+    "Edit", 
+    "FileSearch",
+    "BashHistory"
+  ],
+  "disallowedTools": [],
+  "addDir": [
+    "./src",
+    "./docs", 
+    "./scripts",
+    "./instructions",
+    "./tests"
+  ],
+  "appendSystemPrompt": "You are working on the Cartrita AI Development Tools project - a TypeScript/Node.js application that provides AI-powered development automation. The project uses:\n\n- **TypeScript** with strict type checking\n- **Fastify** web framework\n- **Drizzle ORM** for database operations\n- **Biome** for linting and formatting\n- **pnpm** as package manager\n- **Docker** for containerization\n- **AI Agents** for code generation and analysis\n\nAlways consider:\n- Type safety and modern TypeScript best practices\n- Performance and scalability\n- Security implications\n- Code quality and maintainability\n- Integration with existing AI tools and workflows\n- Following the established project architecture\n\nThe project structure includes AI agents, CLI tools, API endpoints, and database schemas. Focus on maintaining consistency with existing patterns and conventions.",
+  "permissionMode": "default",
+  "verbose": false,
+  "settings": {
+    "theme": "dark",
+    "outputFormat": "text",
+    "interactive": true,
+    "fallbackModel": "haiku"
+  }
+}

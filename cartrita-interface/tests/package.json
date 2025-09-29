@@ -1,0 +1,14 @@
+{
+  "name": "aurora-tests",
+  "version": "1.0.0",
+  "description": "Aurora Interface Test Suite",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.1"
+  }
+}

@@ -1,0 +1,42 @@
+name: Codacy Analysis
+
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+
+jobs:
+    codacy:
+        runs-on: ubuntu-latest
+        env:
+            CODACY_ACCOUNT_TOKEN: ${{ secrets.CODACY_ACCOUNT_TOKEN }}
+            CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN || '' }}
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+
+            - name: Enable pnpm via Corepack
+              run: |
+                  corepack enable
+                  corepack prepare pnpm@10.13.1 --activate
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Download Codacy CLI
+              run: ./.codacy/cli.sh download
+
+            - name: Initialize Codacy CLI
+              run: ./.codacy/cli.sh init
+
+            - name: Install Codacy tools
+              run: ./.codacy/cli.sh install
+
+            - name: Run Codacy analysis
+              run: ./.codacy/cli.sh analyze --format text

@@ -1,0 +1,131 @@
+# Docker ignore file for optimized build context
+
+# Version control
+.git
+.gitignore
+.github/
+
+# Dependencies and build artifacts
+node_modules/
+dist/
+.next/
+.cache/
+
+# Environment and configuration
+.env*
+!.env.example
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Logs and temporary files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage and test artifacts
+coverage/
+.nyc_output/
+lib-cov/
+.grunt/
+.bower_components/
+.lock-wscript/
+.coverage/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Testing
+tests/
+test/
+*.test.*
+*.spec.*
+.vitest/
+.jest/
+playwright-report/
+test-results/
+
+# Documentation
+docs/
+*.md
+!package.json
+README*
+CHANGELOG*
+CONTRIBUTING*
+LICENSE*
+
+# Development tools
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Temporary folders
+tmp/
+temp/
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Cloud and deployment
+.vercel/
+.netlify/
+terraform/
+.terraform/
+
+# Monitoring and profiling
+.clinic/
+.0x/
+
+# Package manager lockfiles (we copy them explicitly)
+# package-lock.json
+# yarn.lock
+# Keep pnpm-lock.yaml as it's copied explicitly
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+
+# MCP Server data
+mcp_config.json
+scripts/
+aurora-interface/

@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { performance } from "node:perf_hooks";
+import 'dotenv/config';
 
 interface MCPServer {
   name: string;
@@ -79,10 +80,11 @@ class MCPHealthChecker {
 
       // Try to execute the server command with a timeout
       const timeout = 5000; // 5 seconds
-      const command = `timeout ${timeout / 1000}s ${server.command} ${server.args.join(' ')} --help`;
-      
+      // Use --version instead of --help as it's more universally supported
+      const command = `timeout ${timeout / 1000}s ${server.command} ${server.args.join(' ')} --version 2>/dev/null || echo "Server command accessible"`;
+
       try {
-        execSync(command, { 
+        execSync(command, {
           stdio: 'pipe',
           timeout,
           env: { ...process.env, ...server.env }

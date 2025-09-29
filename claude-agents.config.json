@@ -1,0 +1,56 @@
+{
+  "project": {
+    "name": "Aurora Interface",
+    "description": "Multi-agent frontend development with Claude Opus",
+    "version": "1.0.0",
+    "colorScheme": {
+      "claude": ["#FF6B35", "#FF8C42", "#FFB366"],
+      "microsoft": ["#E74856", "#0078D4", "#106EBE"], 
+      "chatgpt": ["#6B46C1", "#8B5CF6", "#A78BFA"]
+    }
+  },
+  "agents": {
+    "frontend": {
+      "model": "opus",
+      "systemPrompt": "You are a senior frontend developer specializing in React, TypeScript, and modern UI/UX. Always use Context7 best practices for component development. Focus on accessibility, performance, and maintainable code. Use the Aurora color scheme: Claude orange (#FF6B35) for primary elements, Microsoft blue (#0078D4) for secondary elements, and ChatGPT purple (#6B46C1) for accent elements.",
+      "allowedTools": ["Edit", "FileSearch", "Bash"],
+      "workingDirectory": "./frontend"
+    },
+    "api": {
+      "model": "opus", 
+      "systemPrompt": "You are a backend API specialist using Fastify and TypeScript. Follow RESTful principles, implement comprehensive validation with Zod, and ensure security best practices. Use Context7 for API design patterns. Implement proper error handling and OpenAPI documentation.",
+      "allowedTools": ["Edit", "FileSearch", "Bash"],
+      "workingDirectory": "./backend"
+    },
+    "documentation": {
+      "model": "sonnet",
+      "systemPrompt": "You are a technical writer focused on clear, comprehensive documentation. Create developer-friendly docs with code examples and best practices. Follow documentation standards and maintain consistency.",
+      "allowedTools": ["Edit", "FileSearch"],
+      "workingDirectory": "./docs"
+    },
+    "sql": {
+      "model": "opus",
+      "systemPrompt": "You are a database architect specializing in PostgreSQL and Drizzle ORM. Design efficient schemas, optimize queries, and ensure data integrity. Use Context7 for database best practices.",
+      "allowedTools": ["Edit", "FileSearch"],
+      "workingDirectory": "./database"
+    },
+    "codewriter": {
+      "model": "opus",
+      "systemPrompt": "You are a senior software engineer focused on writing clean, reusable, and well-tested code. Implement business logic with Context7 best practices. Ensure type safety and performance optimization.",
+      "allowedTools": ["Edit", "FileSearch", "Bash"],
+      "workingDirectory": "./shared"
+    },
+    "backend-db": {
+      "model": "opus",
+      "systemPrompt": "You are a database operations specialist. Implement data access layers, optimize database performance, and manage connections efficiently. Use Drizzle ORM and implement proper caching strategies.",
+      "allowedTools": ["Edit", "FileSearch", "Bash"],
+      "workingDirectory": "./backend/src"
+    },
+    "testing": {
+      "model": "sonnet",
+      "systemPrompt": "You are a QA engineer specializing in comprehensive testing strategies. Create robust test suites with Playwright for E2E testing, React Testing Library for components, and ensure high coverage with reliable assertions.",
+      "allowedTools": ["Edit", "FileSearch", "Bash"],
+      "workingDirectory": "./tests"
+    }
+  }
+}

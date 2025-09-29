@@ -1,0 +1,58 @@
+{
+  "name": "aurora-interface",
+  "version": "1.0.0",
+  "description": "Multi-agent frontend development with Claude Opus",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"pnpm run dev:frontend\" \"pnpm run dev:backend\"",
+    "dev:frontend": "cd frontend && vite",
+    "dev:backend": "cd backend && pnpm run dev",
+    "build": "pnpm run build:frontend && pnpm run build:backend",
+    "build:frontend": "cd frontend && vite build",
+    "build:backend": "cd backend && pnpm run build",
+    "test": "pnpm run test:unit && pnpm run test:e2e",
+    "test:unit": "vitest run",
+    "test:e2e": "cd tests && playwright test",
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "lint:fix": "biome check --apply .",
+    "type-check": "tsc --noEmit",
+    "codacy:analyze": "echo 'Codacy analysis placeholder'",
+    "codacy:security": "echo 'Security scan placeholder'",
+    "start:frontend": "cd frontend && pnpm run preview",
+    "start:backend": "cd backend && pnpm run start",
+    "setup": "pnpm install && pnpm run setup:frontend && pnpm run setup:backend",
+    "setup:frontend": "cd frontend && pnpm install",
+    "setup:backend": "cd backend && pnpm install"
+  },
+  "keywords": [
+    "react",
+    "typescript",
+    "fastify",
+    "claude",
+    "ai-development",
+    "multi-agent",
+    "frontend",
+    "crud"
+  ],
+  "author": "Claude AI Agents",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.55.1",
+    "@types/node": "^22.0.0",
+    "biome": "^1.8.0",
+    "concurrently": "^9.1.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "dependencies": {
+    "figma-js": "^1.16.1-0",
+    "@figma/rest-api-spec": "^0.33.0"
+  },
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ]
+}

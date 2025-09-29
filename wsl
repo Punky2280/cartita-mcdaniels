@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Lightweight shim to allow tooling that invokes `wsl` to run on native Linux.
+# Resolves workspace-relative commands (like "./.codacy/cli.sh") and then
+# executes the provided arguments directly on the host.
+if [ "$#" -eq 0 ]; then
+  echo "wsl shim: missing command" >&2
+  exit 1
+fi
+
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+COMMAND="$1"
+shift
+
+# If the command is a relative path (starts with ./ or ../ or .codacy/ etc.),
+# resolve it against the workspace directory where this shim lives.
+case "$COMMAND" in
+  ./*|..*|.codacy/*)
+    RESOLVED_COMMAND="${SCRIPT_DIR}/${COMMAND}"
+    ;;
+  *)
+    RESOLVED_COMMAND="$COMMAND"
+    ;;
+esac
+
+exec "$RESOLVED_COMMAND" "$@"

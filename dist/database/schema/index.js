@@ -1,2 +1,10 @@
+// Users and authentication
+export * from './users';
+// Agent system
 export * from './agents';
-// Add other schema exports here
+// Security and access control
+export * from './security';
+// Workflow management
+export * from './workflows';
+// Knowledge management
+export * from './knowledge';

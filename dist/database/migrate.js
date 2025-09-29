@@ -4,7 +4,11 @@ import postgres from 'postgres';
 import 'dotenv/config';
 const runMigrations = async () => {
     console.log("Running database migrations...");
-    const migrationClient = postgres(process.env['DATABASE_URL'], { max: 1 });
+    const databaseUrl = process.env['DATABASE_URL'];
+    if (!databaseUrl) {
+        throw new Error('DATABASE_URL environment variable is required');
+    }
+    const migrationClient = postgres(databaseUrl, { max: 1 });
     const db = drizzle(migrationClient);
     await migrate(db, { migrationsFolder: './src/database/migrations' });
     await migrationClient.end();

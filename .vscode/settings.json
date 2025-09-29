@@ -1,21 +1,44 @@
 {
     "cSpell.words": [
+        "aitk",
+        "cartita",
         "cartrita",
+        "cmdshell",
+        "codewriter",
         "Deepgram",
         "everart",
+        "executesql",
+        "Fastify",
+        "Fira",
+        "frameguard",
         "gdrive",
+        "ghp",
         "HNSW",
         "HUGGINGFACE",
+        "iat",
         "initdb",
         "KUBECONFIG",
+        "lz",
         "mcdaniels",
+        "nmap",
         "ossp",
         "pgvector",
+        "retryable",
+        "Scriptable",
         "SERPAPI",
+        "sqlmap",
         "TAVILY",
         "tsc",
+        "tvly",
         "typebox",
         "usermod",
-        "VARCHAR"
-    ]
+        "UX",
+        "VARCHAR",
+        "Vite",
+        "websearch",
+        "Zustand"
+    ],
+    "terminal.integrated.env.linux": {
+        "PATH": "${env:HOME}/.local/bin:${workspaceFolder}:${env:PATH}"
+    }
 }

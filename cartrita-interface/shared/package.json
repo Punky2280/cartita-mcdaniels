@@ -1,0 +1,17 @@
+{
+  "name": "aurora-shared",
+  "version": "1.0.0",
+  "description": "Aurora Interface Shared Utilities",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

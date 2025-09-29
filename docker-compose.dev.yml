@@ -1,0 +1,152 @@
+# Docker Compose for Development Environment
+
+services:
+  # PostgreSQL Database with pgvector
+  database:
+    image: pgvector/pgvector:pg17
+    container_name: cartrita-db-dev
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: cartrita_ai_agents
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cartrita_ai_agents"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cartrita-network
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: cartrita-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - cartrita-network
+
+  # MCP Servers Container
+  mcp-servers:
+    build:
+      context: .
+      dockerfile: docker/mcp-servers/Dockerfile
+    container_name: cartrita-mcp-dev
+    environment:
+      - NODE_ENV=development
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - BRAVE_API_KEY=${BRAVE_API_KEY:-}
+      - EVERART_API_KEY=${EVERART_API_KEY:-}
+      - GITLAB_TOKEN=${GITLAB_TOKEN:-}
+      - GITLAB_API_URL=${GITLAB_API_URL:-https://gitlab.com/api/v4}
+      - DATABASE_URL=postgresql://postgres:postgres123@database:5432/cartrita_ai_agents
+      - ALLOWED_DIRECTORIES=/tmp,/var/tmp,/app/data
+      - SQLITE_DATABASE_PATH=/app/data/mcp.db
+    volumes:
+      - mcp_logs_dev:/app/logs
+      - mcp_data_dev:/app/data
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - cartrita-network
+
+  # Main Application (Development mode with hot reload)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: base
+    container_name: cartrita-app-dev
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - HOST=0.0.0.0
+      - DATABASE_URL=postgresql://postgres:postgres123@database:5432/cartrita_ai_agents
+      - REDIS_URL=redis://redis:6379
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - FIGMA_ACCESS_TOKEN=${FIGMA_ACCESS_TOKEN:-}
+      - CODACY_PROJECT_TOKEN=${CODACY_PROJECT_TOKEN:-}
+      - DB_POOL_MAX=20
+      - DB_IDLE_TIMEOUT=30
+      - DB_CONNECT_TIMEOUT=10
+      - DB_MAX_LIFETIME=3600
+    ports:
+      - "3001:3001"
+      - "9229:9229" # Debug port
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - app_logs_dev:/app/logs
+    command: >
+      sh -c "
+        pnpm install &&
+        pnpm run db:migrate &&
+        pnpm run dev
+      "
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mcp-servers:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - cartrita-network
+
+  # Development tools container
+  dev-tools:
+    image: node:22-alpine
+    container_name: cartrita-dev-tools
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: >
+      sh -c "
+        corepack enable &&
+        tail -f /dev/null
+      "
+    networks:
+      - cartrita-network
+
+volumes:
+  postgres_data_dev:
+    driver: local
+  redis_data_dev:
+    driver: local
+  mcp_logs_dev:
+    driver: local
+  mcp_data_dev:
+    driver: local
+  app_logs_dev:
+    driver: local
+
+networks:
+  cartrita-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.0.0/16
