@@ -134,6 +134,7 @@ GET /api/v1/context7/documentation/{library}?topic={topic}&useCase={useCase}
 ```
 
 Example:
+
 ```bash
 curl "http://localhost:3000/api/v1/context7/documentation/fastify?topic=authentication"
 ```
@@ -145,6 +146,7 @@ GET /api/v1/context7/resolve/{libraryName}
 ```
 
 Example:
+
 ```bash
 curl "http://localhost:3000/api/v1/context7/resolve/express"
 ```
@@ -568,5 +570,3 @@ class Context7Monitor {
 4. **Graceful degradation** - workflows should work without Context7
 
 ---
-
-*Last updated: September 27, 2025*

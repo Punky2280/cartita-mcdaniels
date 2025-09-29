@@ -46,6 +46,27 @@ export interface ApiResponse<T> {
   success: boolean;
   message?: string;
   errors?: string[];
+  metadata?: Record<string, unknown>;
+  pagination?: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext?: boolean;
+    hasPrev?: boolean;
+  };
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext?: boolean;
+    hasPrev?: boolean;
+  };
 }
 
 export interface ApiError {
@@ -70,6 +91,59 @@ export interface PaginatedResponse<T> {
     totalPages: number;
   };
 }
+
+export type AgentType =
+  | 'research'
+  | 'code'
+  | 'knowledge'
+  | 'documentation'
+  | 'analysis'
+  | 'orchestrator'
+  | 'custom';
+
+export type AgentStatus = 'active' | 'inactive' | 'error' | 'paused' | 'maintenance';
+
+export interface AgentConfiguration {
+  [key: string]: unknown;
+}
+
+export interface Agent {
+  id: string;
+  name: string;
+  description?: string;
+  type: AgentType | string;
+  status: AgentStatus | string;
+  config?: AgentConfiguration;
+  capabilities?: string[];
+  mcpServers?: string[];
+  version?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  lastActivity?: string;
+  lastActiveAt?: string;
+  executionCount?: number;
+  successRate?: number;
+  avgResponseTime?: number;
+  performance?: {
+    tasksCompleted?: number;
+    averageResponseTime?: number;
+    successRate?: number;
+    cpuUsage?: number;
+    memoryUsage?: number;
+  };
+}
+
+export interface CreateAgentRequest {
+  name: string;
+  description?: string;
+  type: AgentType | string;
+  config?: AgentConfiguration;
+  capabilities?: string[];
+  mcpServers?: string[];
+}
+
+export type UpdateAgentRequest = Partial<CreateAgentRequest>;
 
 // Cartrita Theme Types
 export interface CartritaTheme {

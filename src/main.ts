@@ -2,7 +2,7 @@ import Fastify from 'fastify';
 import fastifySensible from '@fastify/sensible';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
-import 'dotenv/config';
+import { config } from './config/environment.js';
 
 // Import plugins
 import databasePlugin from './plugins/database.js';
@@ -19,10 +19,12 @@ import context7Routes from './routes/context7.js';
 import webhookRoutes from './routes/webhooks.js';
 import chatRoutes from './routes/chat.js';
 
-const env = process.env;
-const isDevelopment = env['NODE_ENV'] === 'development';
-const packageVersion = env['npm_package_version'] ?? '1.0.0';
-const logLevel = env['LOG_LEVEL'] ?? 'info';
+// Validate environment configuration on startup
+config.validate();
+
+const isDevelopment = config.server.isDevelopment;
+const packageVersion = process.env['npm_package_version'] ?? '1.0.0';
+const logLevel = config.server.logLevel;
 
 const server = Fastify({
   logger: isDevelopment ? {
@@ -58,8 +60,8 @@ await server.register(fastifySwagger, {
     },
     servers: [
       {
-        url: env['API_BASE_URL'] ?? 'http://localhost:3000',
-        description: 'Development server'
+        url: config.security.apiBaseUrl,
+        description: isDevelopment ? 'Development server' : 'Production server'
       }
     ],
     components: {
@@ -146,13 +148,20 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 const start = async () => {
   try {
-    const portValue = env['PORT'];
-    const port = portValue ? Number(portValue) : 3002; // Changed default to 3002
-    const host = env['HOST'] ?? '0.0.0.0';
+    const port = config.server.port;
+    const host = config.server.host;
 
     await server.listen({ port, host });
     server.log.info(`Server running on http://${host}:${port}`);
     server.log.info(`API Documentation available at http://${host}:${port}/docs`);
+    server.log.info(`Environment: ${config.server.env}`);
+
+    // Log security status
+    server.log.info('Security features enabled:');
+    server.log.info(`- Rate limiting: ${config.security.rateLimiting.maxRequests} requests per minute`);
+    server.log.info(`- CORS origin: ${config.security.corsOrigin}`);
+    server.log.info(`- Threat detection: ${config.security.threatDetection.enabled}`);
+    server.log.info(`- Input validation: ${config.security.inputValidation.enabled}`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);

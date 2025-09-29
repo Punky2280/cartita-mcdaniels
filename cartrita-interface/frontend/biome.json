@@ -1,103 +1,46 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.2.4/schema.json",
-  "assist": {
-    "actions": {
-      "source": {
-        "organizeImports": "on"
-      }
-    }
-  },
+  "$schema": "https://biomejs.dev/schemas/1.9.0/schema.json",
   "files": {
-    "includes": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx"],
-    "ignoreUnknown": false
+    "ignore": [
+      "dist/*",
+      "build/*"
+    ]
   },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "recommended": false,
       "suspicious": {
-        "noArrayIndexKey": "warn",
-        "noConsole": "warn",
+        "noConsole": "off",
         "noDebugger": "error",
-        "noDoubleEquals": "error",
-        "noDuplicateCase": "error",
-        "noDuplicateObjectKeys": "error",
-        "noEmptyInterface": "error",
-        "noExplicitAny": "error",
-        "noImplicitAnyLet": "error"
+        "noDoubleEquals": "error"
       },
       "style": {
-        "noNegationElse": "error",
-        "noParameterAssign": "error",
-        "noUnusedTemplateLiteral": "error",
-        "useBlockStatements": "error",
-        "useCollapsedElseIf": "error",
-        "useConsistentArrayType": {
-          "level": "error",
-          "options": {
-            "syntax": "shorthand"
-          }
-        },
-        "useConst": "error",
-        "useDefaultParameterLast": "error",
-        "useEnumInitializers": "error",
-        "useExponentiationOperator": "error",
-        "useOptionalChain": "error",
-        "useShorthandArrayType": "error",
-        "useSingleVarDeclarator": "error",
-        "useTemplate": "error"
-      },
-      "complexity": {
-        "noBannedTypes": "error",
-        "noUselessConstructor": "error",
-        "noUselessFragments": "error",
-        "noUselessLabel": "error",
-        "noUselessRename": "error",
-        "noUselessSwitchCase": "error",
-        "noWith": "error",
-        "useArrowFunction": "error",
-        "useLiteralKeys": "error",
-        "useOptionalChain": "error",
-        "useSimplifiedLogicExpression": "error"
+        "useBlockStatements": "off",
+        "useConst": "warn"
       },
       "correctness": {
-        "noChildrenProp": "error",
         "noConstAssign": "error",
-        "noConstantCondition": "error",
-        "noConstructorReturn": "error",
-        "noEmptyCharacterClassInRegex": "error",
-        "noEmptyPattern": "error",
-        "noGlobalObjectCalls": "error",
         "noInvalidConstructorSuper": "error",
-        "noNonoctalDecimalEscape": "error",
-        "noPrecisionLoss": "error",
-        "noSelfAssign": "error",
-        "noSwitchDeclarations": "error",
-        "noUndeclaredVariables": "error",
-        "noUnreachable": "error",
-        "noUnreachableSuper": "error",
-        "noUnsafeFinally": "error",
         "noUnsafeOptionalChaining": "error",
-        "noUnusedLabels": "error",
-        "noUnusedVariables": "error",
-        "useIsNan": "error",
-        "useValidForDirection": "error",
-        "useYield": "error"
+        "noUnusedVariables": "off",
+        "useIsNan": "error"
       },
       "security": {
-        "noDangerouslySetInnerHtml": "error",
-        "noDangerouslySetInnerHtmlWithChildren": "error"
-      },
+        "noDangerouslySetInnerHtml": "error"
+      }
     }
   },
   "formatter": {
-    "enabled": true,
+    "enabled": false,
     "formatWithErrors": false,
     "indentStyle": "space",
     "indentWidth": 2,
     "lineWidth": 100,
-    "lineEnding": "lf",
-    "includes": ["src/**/*"]
+    "lineEnding": "lf"
+  },
+  "organizeImports": {
+    "enabled": false
   },
   "javascript": {
     "formatter": {

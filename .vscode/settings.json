@@ -1,11 +1,15 @@
 {
     "cSpell.words": [
+        "ACP",
         "aitk",
+        "bg",
         "cartita",
         "cartrita",
         "cmdshell",
         "codewriter",
+        "Contentful",
         "Deepgram",
+        "dotenv",
         "everart",
         "executesql",
         "Fastify",
@@ -23,14 +27,17 @@
         "nmap",
         "ossp",
         "pgvector",
+        "rebranded",
         "retryable",
         "Scriptable",
         "SERPAPI",
         "sqlmap",
         "TAVILY",
         "tsc",
+        "TTL",
         "tvly",
         "typebox",
+        "Unvalidated",
         "usermod",
         "UX",
         "VARCHAR",
@@ -40,5 +47,6 @@
     ],
     "terminal.integrated.env.linux": {
         "PATH": "${env:HOME}/.local/bin:${workspaceFolder}:${env:PATH}"
-    }
+    },
+    "codacy.cli.cliVersion": "codacy-cli-v2_1.0.0-main.358.sha.7cb05d0_checksums.txt"
 }

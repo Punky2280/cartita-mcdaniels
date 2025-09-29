@@ -1,42 +1,93 @@
 name: Codacy Analysis
 
 on:
-    push:
-        branches:
-            - main
-    pull_request:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
 
 jobs:
-    codacy:
-        runs-on: ubuntu-latest
-        env:
-            CODACY_ACCOUNT_TOKEN: ${{ secrets.CODACY_ACCOUNT_TOKEN }}
-            CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN || '' }}
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+  actionlint:
+    name: Lint workflows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Set up Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version: 22
+      - name: Run actionlint
+        uses: docker://ghcr.io/rhysd/actionlint:latest
 
-            - name: Enable pnpm via Corepack
-              run: |
-                  corepack enable
-                  corepack prepare pnpm@10.13.1 --activate
+  codacy-cli:
+    name: Run Codacy CLI
+    runs-on: ubuntu-latest
+    needs:
+      - actionlint
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      CODACY_API_TOKEN: ${{ secrets.CODACY_API_TOKEN }}
+      CODACY_PROJECT_TOKEN: ${{ secrets.CODACY_PROJECT_TOKEN }}
 
-            - name: Install dependencies
-              run: pnpm install --frozen-lockfile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-            - name: Download Codacy CLI
-              run: ./.codacy/cli.sh download
+      - name: Ensure Codacy tokens are present
+        run: |
+          if [ -z "${CODACY_API_TOKEN:-}" ]; then
+            echo "CODACY_API_TOKEN is required" >&2
+            exit 1
+          fi
+          echo "CODACY_ACCOUNT_TOKEN=${CODACY_API_TOKEN}" >> "$GITHUB_ENV"
+          if [ -n "${CODACY_PROJECT_TOKEN:-}" ]; then
+            echo "CODACY_PROJECT_TOKEN=${CODACY_PROJECT_TOKEN}" >> "$GITHUB_ENV"
+          fi
 
-            - name: Initialize Codacy CLI
-              run: ./.codacy/cli.sh init
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
-            - name: Install Codacy tools
-              run: ./.codacy/cli.sh install
+      - name: Enable pnpm via Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.13.1 --activate
 
-            - name: Run Codacy analysis
-              run: ./.codacy/cli.sh analyze --format text
+      - name: Resolve pnpm store directory
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download Codacy CLI
+        run: ./.codacy/cli.sh download
+
+      - name: Run Codacy analysis
+        run: ./.codacy/cli.sh analyze --format sarif --output codacy-results.sarif
+
+      - name: Upload Codacy SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: codacy-results.sarif
+
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codacy-results
+          path: codacy-results.sarif
+          retention-days: 7

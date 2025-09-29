@@ -3,11 +3,9 @@ import fp from 'fastify-plugin';
 import rateLimit from '@fastify/rate-limit';
 import helmet from '@fastify/helmet';
 import { securityService, type SecurityEvent } from '../core/SecurityService.js';
+import { config } from '../config/environment.js';
 
-const env = process.env;
-const NODE_ENV = env['NODE_ENV'] ?? 'development';
-const IS_PRODUCTION = NODE_ENV === 'production';
-const DEFAULT_CORS_ORIGIN = env['CORS_ORIGIN'] ?? '*';
+const IS_PRODUCTION = config.server.isProduction;
 type InputValidationType = Parameters<(typeof securityService)['validateAndSanitizeInput']>[1];
 
 // Security plugin options
@@ -50,41 +48,42 @@ declare module 'fastify' {
 }
 
 const securityPlugin: FastifyPluginAsync<SecurityPluginOptions> = async (fastify, opts) => {
-  // Default options
+  // Default options using centralized config
   const options: SecurityPluginOptions = {
     rateLimit: {
-      windowMs: 60 * 1000, // 1 minute
-      maxRequests: 100,
-      skipOnError: false,
+      windowMs: config.security.rateLimiting.windowMs,
+      maxRequests: config.security.rateLimiting.maxRequests,
+      skipOnError: config.security.rateLimiting.skipOnError,
     },
     cors: {
-      origin: DEFAULT_CORS_ORIGIN,
+      origin: config.security.corsOrigin,
       credentials: true,
     },
     headers: {
-      csp: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';",
-      hsts: IS_PRODUCTION,
-      frameGuard: true,
+      csp: config.security.headers.csp,
+      hsts: config.security.headers.hsts,
+      frameGuard: config.security.headers.frameGuard,
     },
     inputValidation: {
-      enabled: true,
-      maxBodySize: '10mb',
-      maxQueryStringSize: 1024,
+      enabled: config.security.inputValidation.enabled,
+      maxBodySize: config.security.inputValidation.maxBodySize,
+      maxQueryStringSize: config.security.inputValidation.maxQueryStringSize,
     },
     threatDetection: {
-      enabled: true,
-      blockSuspicious: IS_PRODUCTION,
-      logAllRequests: false,
+      enabled: config.security.threatDetection.enabled,
+      blockSuspicious: config.security.threatDetection.blockSuspicious,
+      logAllRequests: config.security.threatDetection.logAllRequests,
     },
     ...opts,
   };
 
-  // === HELMET SECURITY HEADERS ===
+  // === ENHANCED HELMET SECURITY HEADERS ===
   await fastify.register(helmet, {
+    // Content Security Policy - Stricter in production
     contentSecurityPolicy: options.headers?.csp ? {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: IS_PRODUCTION ? ["'self'"] : ["'self'", "'unsafe-inline'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'"],
@@ -92,39 +91,115 @@ const securityPlugin: FastifyPluginAsync<SecurityPluginOptions> = async (fastify
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
         frameSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+        upgradeInsecureRequests: IS_PRODUCTION ? [] : undefined,
       },
     } : false,
-    crossOriginEmbedderPolicy: false, // Disable for development
+
+    // HSTS - HTTP Strict Transport Security
     hsts: options.headers?.hsts ? {
-      maxAge: 31536000,
+      maxAge: 31536000, // 1 year
       includeSubDomains: true,
       preload: true,
     } : false,
+
+    // X-Frame-Options
+    frameguard: options.headers?.frameGuard ? {
+      action: 'deny'
+    } : false,
+
+    // X-Content-Type-Options
+    noSniff: true,
+
+    // X-XSS-Protection (legacy but still useful)
+    xssFilter: true,
+
+    // Referrer Policy
+    referrerPolicy: {
+      policy: "strict-origin-when-cross-origin"
+    },
+
+    // Cross-Origin-Opener-Policy
+    crossOriginOpenerPolicy: {
+      policy: "same-origin"
+    },
+
+    // Cross-Origin-Resource-Policy
+    crossOriginResourcePolicy: {
+      policy: "same-origin"
+    },
+
+    // Origin-Agent-Cluster
+    originAgentCluster: true,
+
+    // Permissions Policy (formerly Feature Policy)
+    permissionsPolicy: {
+      camera: [],
+      microphone: [],
+      geolocation: [],
+      payment: [],
+      usb: [],
+      bluetooth: [],
+      accelerometer: [],
+      gyroscope: [],
+      magnetometer: [],
+    },
+
+    // Remove potentially sensitive headers
+    hidePoweredBy: true,
   });
 
-  // === RATE LIMITING ===
+  // === ENHANCED RATE LIMITING ===
   await fastify.register(rateLimit, {
     max: options.rateLimit?.maxRequests ?? 100,
     timeWindow: options.rateLimit?.windowMs ?? 60000,
     skipOnError: options.rateLimit?.skipOnError ?? false,
+
+    // Enhanced key generation with tiered limits
     keyGenerator: (request) => {
-      // Use API key if available, otherwise IP
+      // Different limits for different user types
       if (request.user?.id) {
-        return `user:${request.user.id}`;
+        const userType = request.user.role || 'user';
+        return `user:${userType}:${request.user.id}`;
       }
       if (request.apiKey?.id) {
-        return `api:${request.apiKey.id}`;
+        return `api:standard:${request.apiKey.id}`;
       }
-      return request.ip;
+
+      // IP-based limiting with subnet considerations
+      const ip = request.ip;
+      const forwardedFor = request.headers['x-forwarded-for'];
+      const realIp = forwardedFor ? String(forwardedFor).split(',')[0].trim() : ip;
+      return `ip:${realIp}`;
     },
+
+    // Remove duplicate max property and keep the simple one
+
+    // Enhanced error response with security headers
     errorResponseBuilder: (request, context) => {
+
       return {
-        error: 'Rate limit exceeded',
-        message: `Too many requests, please try again later.`,
-        retryAfter: Math.round(context.ttl / 1000),
+        error: {
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: 'Too many requests, please try again later.',
+          retryAfter: Math.round(context.ttl / 1000),
+        },
+        timestamp: new Date().toISOString(),
       };
     },
-    onExceeding: async (request) => {
+
+    // Enhanced rate limit headers
+    addHeaders: {
+      'x-ratelimit-limit': true,
+      'x-ratelimit-remaining': true,
+      'x-ratelimit-reset': true,
+      'retry-after': true,
+    },
+
+
+    onExceeding: async (request, key) => {
       await securityService.logSecurityEvent({
         type: 'rate_limit_exceeded',
         severity: 'warning',
@@ -132,9 +207,13 @@ const securityPlugin: FastifyPluginAsync<SecurityPluginOptions> = async (fastify
           ip: request.ip,
           userAgent: request.headers['user-agent'],
           url: request.url,
+          method: request.method,
+          key,
+          timestamp: new Date().toISOString(),
         },
       }, request);
     },
+
   });
 
   // === INPUT VALIDATION ===

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import {
   CpuChipIcon,
   PlusIcon,
@@ -11,25 +11,15 @@ import {
   ExclamationTriangleIcon,
   ClockIcon,
   ChartBarIcon,
-  DocumentTextIcon,
-  MagnifyingGlassIcon,
   FunnelIcon
 } from '@heroicons/react/24/outline';
-import { Card, Button, Badge, Input, Modal } from '../components/UI';
+import { Card, Button, Badge, Input } from '../components/UI';
 import { motion, AnimatePresence } from 'framer-motion';
-
-interface Agent {
-  id: string;
-  name: string;
-  type: 'frontend' | 'api' | 'docs' | 'codebase-inspector' | 'mcp-integration';
-  status: 'running' | 'stopped' | 'error' | 'starting';
-  description: string;
-  lastExecution: string;
-  totalExecutions: number;
-  successRate: number;
-  capabilities: string[];
-  version: string;
-}
+import { formatDistanceToNow } from 'date-fns';
+import { useApiData } from '@/hooks';
+import { agentService } from '@/services/agentService';
+import type { Agent, AgentStatus, PaginatedResult } from '@/types';
+import { logger } from '@/utils/logger';
 
 interface AgentCardProps {
   agent: Agent;
@@ -38,6 +28,7 @@ interface AgentCardProps {
   onView: (id: string) => void;
   onConfigure: (id: string) => void;
   onDelete: (id: string) => void;
+  isProcessing?: boolean;
 }
 
 const AgentCard: React.FC<AgentCardProps> = ({
@@ -46,31 +37,56 @@ const AgentCard: React.FC<AgentCardProps> = ({
   onStop,
   onView,
   onConfigure,
-  onDelete
+  onDelete,
+  isProcessing = false
 }) => {
+  const resolvedStatus = agent.status ?? 'inactive';
+  const totalExecutions = agent.performance?.tasksCompleted ?? agent.executionCount ?? 0;
+  const rawSuccessRate = agent.performance?.successRate ?? agent.successRate ?? 0;
+  const successRate = Number.isFinite(rawSuccessRate)
+    ? Math.round(rawSuccessRate <= 1 ? rawSuccessRate * 100 : rawSuccessRate)
+    : 0;
+  const version = typeof agent.version === 'string'
+    ? agent.version
+    : typeof agent.config?.version === 'string'
+      ? agent.config.version
+      : '1.0.0';
+  const lastExecutionDate = agent.lastActivity ?? agent.lastActiveAt ?? agent.updatedAt ?? agent.createdAt;
+  const lastExecutionDisplay = lastExecutionDate
+    ? formatDistanceToNow(new Date(lastExecutionDate), { addSuffix: true })
+    : 'No recorded activity';
+
   const getStatusIcon = () => {
-    switch (agent.status) {
-      case 'running':
+    switch (resolvedStatus) {
+      case 'active':
         return <CheckCircleIcon className="h-5 w-5 text-green-500" />;
-      case 'stopped':
+      case 'inactive':
         return <ClockIcon className="h-5 w-5 text-gray-400" />;
       case 'error':
         return <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />;
-      case 'starting':
+      case 'paused':
         return <div className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />;
+      case 'maintenance':
+        return <PauseIcon className="h-5 w-5 text-yellow-500" />;
+      default:
+        return <ClockIcon className="h-5 w-5 text-gray-400" />;
     }
   };
 
   const getStatusBadge = () => {
-    switch (agent.status) {
-      case 'running':
-        return <Badge variant="success">Running</Badge>;
-      case 'stopped':
-        return <Badge variant="neutral">Stopped</Badge>;
+    switch (resolvedStatus) {
+      case 'active':
+        return <Badge variant="success">Active</Badge>;
+      case 'inactive':
+        return <Badge variant="neutral">Inactive</Badge>;
       case 'error':
         return <Badge variant="error">Error</Badge>;
-      case 'starting':
-        return <Badge variant="info">Starting</Badge>;
+      case 'paused':
+        return <Badge variant="info">Paused</Badge>;
+      case 'maintenance':
+        return <Badge variant="warning">Maintenance</Badge>;
+      default:
+        return <Badge variant="neutral">{resolvedStatus}</Badge>;
     }
   };
 
@@ -95,7 +111,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{agent.name}</h3>
-                <p className="text-sm text-gray-500 capitalize">{agent.type.replace('-', ' ')}</p>
+                <p className="text-sm text-gray-500 capitalize">{agent.type?.toString().replace('-', ' ') ?? 'Unknown type'}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -106,28 +122,34 @@ const AgentCard: React.FC<AgentCardProps> = ({
         </Card.Header>
 
         <Card.Content>
-          <p className="text-sm text-gray-600 mb-4 leading-relaxed">{agent.description}</p>
+          <p className="text-sm text-gray-600 mb-4 leading-relaxed">{agent.description ?? 'No description provided yet.'}</p>
 
           {/* Capabilities */}
           <div className="mb-4">
             <h4 className="text-sm font-semibold text-gray-700 mb-3">Capabilities</h4>
             <div className="flex flex-wrap gap-2">
-              {agent.capabilities.slice(0, 3).map((capability, index) => (
-                <motion.div
-                  key={capability}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <Badge variant="primary" size="sm">
-                    {capability}
-                  </Badge>
-                </motion.div>
-              ))}
-              {agent.capabilities.length > 3 && (
-                <Badge variant="neutral" size="sm">
-                  +{agent.capabilities.length - 3} more
-                </Badge>
+              {agent.capabilities && agent.capabilities.length > 0 ? (
+                <>
+                  {agent.capabilities.slice(0, 3).map((capability, index) => (
+                    <motion.div
+                      key={capability}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <Badge variant="primary" size="sm">
+                        {capability}
+                      </Badge>
+                    </motion.div>
+                  ))}
+                  {agent.capabilities.length > 3 && (
+                    <Badge variant="neutral" size="sm">
+                      +{agent.capabilities.length - 3} more
+                    </Badge>
+                  )}
+                </>
+              ) : (
+                <Badge variant="neutral" size="sm">No capabilities defined</Badge>
               )}
             </div>
           </div>
@@ -135,33 +157,34 @@ const AgentCard: React.FC<AgentCardProps> = ({
           {/* Metrics */}
           <div className="grid grid-cols-3 gap-4 mb-4 p-4 bg-gradient-to-r from-gray-50 to-claude-50 rounded-lg border border-gray-100">
             <div className="text-center">
-              <div className="text-xl font-bold text-gray-900">{agent.totalExecutions.toLocaleString()}</div>
+              <div className="text-xl font-bold text-gray-900">{totalExecutions.toLocaleString()}</div>
               <div className="text-xs text-gray-500 font-medium">Executions</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-green-600">{agent.successRate}%</div>
+              <div className="text-xl font-bold text-green-600">{successRate}%</div>
               <div className="text-xs text-gray-500 font-medium">Success Rate</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-bold text-claude-600">v{agent.version}</div>
+              <div className="text-xl font-bold text-claude-600">v{version}</div>
               <div className="text-xs text-gray-500 font-medium">Version</div>
             </div>
           </div>
 
           <div className="text-sm text-gray-500 mb-6 flex items-center gap-2">
             <ClockIcon className="w-4 h-4" />
-            Last execution: <span className="font-medium">{agent.lastExecution}</span>
+            Last activity: <span className="font-medium">{lastExecutionDisplay}</span>
           </div>
         </Card.Content>
 
         <Card.Footer className="flex items-center gap-2">
-          {agent.status === 'running' ? (
+          {resolvedStatus === 'active' ? (
             <Button
               variant="outline"
               size="sm"
               onClick={() => onStop(agent.id)}
               icon={<PauseIcon className="h-4 w-4" />}
               className="text-red-600 border-red-200 hover:bg-red-50"
+              disabled={isProcessing}
             >
               Stop
             </Button>
@@ -172,6 +195,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
               onClick={() => onStart(agent.id)}
               icon={<PlayIcon className="h-4 w-4" />}
               className="text-green-600 border-green-200 hover:bg-green-50"
+              disabled={isProcessing}
             >
               Start
             </Button>
@@ -182,6 +206,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
             size="sm"
             onClick={() => onView(agent.id)}
             icon={<EyeIcon className="h-4 w-4" />}
+            disabled={isProcessing}
           >
             View
           </Button>
@@ -191,6 +216,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
             size="sm"
             onClick={() => onConfigure(agent.id)}
             icon={<Cog6ToothIcon className="h-4 w-4" />}
+            disabled={isProcessing}
           >
             Configure
           </Button>
@@ -201,6 +227,7 @@ const AgentCard: React.FC<AgentCardProps> = ({
             onClick={() => onDelete(agent.id)}
             icon={<TrashIcon className="h-4 w-4" />}
             className="ml-auto text-red-600 hover:bg-red-50"
+            disabled={isProcessing}
           />
         </Card.Footer>
       </Card>
@@ -208,118 +235,191 @@ const AgentCard: React.FC<AgentCardProps> = ({
   );
 };
 
+type StatusFilterValue = AgentStatus | 'all';
+
 export const Agents: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilterValue>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const agents: Agent[] = [
-    {
-      id: '1',
-      name: 'Frontend Agent',
-      type: 'frontend',
-      status: 'running',
-      description: 'Specialized in React, TypeScript, and UI component development with Cartrita design system integration.',
-      lastExecution: '2 minutes ago',
-      totalExecutions: 1247,
-      successRate: 98.5,
-      capabilities: ['React Components', 'TypeScript', 'Tailwind CSS', 'Accessibility', 'Cartrita UI'],
-      version: '1.2.3'
-    },
-    {
-      id: '2',
-      name: 'API Agent',
-      type: 'api',
-      status: 'running',
-      description: 'Handles REST API development, database integration, and security implementation with Fastify.',
-      lastExecution: '1 minute ago',
-      totalExecutions: 892,
-      successRate: 97.2,
-      capabilities: ['Fastify APIs', 'Database Design', 'Security', 'OpenAPI', 'Validation'],
-      version: '1.1.8'
-    },
-    {
-      id: '3',
-      name: 'Documentation Agent',
-      type: 'docs',
-      status: 'running',
-      description: 'Creates comprehensive technical documentation, API docs, and user guides.',
-      lastExecution: '5 minutes ago',
-      totalExecutions: 543,
-      successRate: 99.1,
-      capabilities: ['Technical Writing', 'API Docs', 'Tutorials', 'Markdown', 'OpenAPI Specs'],
-      version: '1.0.9'
-    },
-    {
-      id: '4',
-      name: 'Codebase Inspector',
-      type: 'codebase-inspector',
-      status: 'running',
-      description: 'Performs security analysis, performance auditing, and architecture reviews using MCP servers.',
-      lastExecution: '10 minutes ago',
-      totalExecutions: 234,
-      successRate: 95.8,
-      capabilities: ['Security Analysis', 'Performance Audit', 'Code Quality', 'MCP Integration'],
-      version: '1.0.0'
-    },
-    {
-      id: '5',
-      name: 'MCP Integration Agent',
-      type: 'mcp-integration',
-      status: 'running',
-      description: 'Manages Model Context Protocol servers and provides enhanced documentation through Context7.',
-      lastExecution: '3 minutes ago',
-      totalExecutions: 156,
-      successRate: 94.2,
-      capabilities: ['MCP Servers', 'Context7', 'GitHub Integration', 'Memory Management'],
-      version: '1.0.0'
-    }
-  ];
+  const fetchAgents = useCallback(() => agentService.listAgents({ limit: 100 }), []);
 
-  const filteredAgents = agents.filter(agent => {
-    const matchesSearch = agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         agent.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || agent.status === statusFilter;
-    const matchesType = typeFilter === 'all' || agent.type === typeFilter;
-
-    return matchesSearch && matchesStatus && matchesType;
+  const {
+    data: agentsResult,
+    loading: agentsLoading,
+    error: agentsError,
+    refresh: refreshAgents,
+  } = useApiData<PaginatedResult<Agent>>(fetchAgents, {
+    cacheKey: 'agents-page',
+    retryAttempts: 2,
   });
 
-  const handleStartAgent = (id: string) => {
-    console.log('Starting agent:', id);
-    // Implementation for starting agent
-  };
+  const agents = useMemo(() => agentsResult?.items ?? [], [agentsResult]);
 
-  const handleStopAgent = (id: string) => {
-    console.log('Stopping agent:', id);
-    // Implementation for stopping agent
-  };
+  const availableTypes = useMemo(() => {
+    const typeSet = new Set<string>();
+    for (const agent of agents) {
+      if (agent.type) {
+        typeSet.add(agent.type.toString());
+      }
+    }
+    return Array.from(typeSet).sort((a, b) => a.localeCompare(b));
+  }, [agents]);
 
-  const handleViewAgent = (id: string) => {
-    console.log('Viewing agent:', id);
-    // Implementation for viewing agent details
-  };
+  const normalizedSearch = searchTerm.trim().toLowerCase();
 
-  const handleConfigureAgent = (id: string) => {
-    console.log('Configuring agent:', id);
-    // Implementation for configuring agent
-  };
+  const filteredAgents = useMemo(() => {
+    return agents.filter(agent => {
+      const name = agent.name?.toLowerCase() ?? '';
+      const description = agent.description?.toLowerCase() ?? '';
+      const capabilitiesMatch = agent.capabilities?.some(capability => capability.toLowerCase().includes(normalizedSearch)) ?? false;
 
-  const handleDeleteAgent = (id: string) => {
-    console.log('Deleting agent:', id);
-    // Implementation for deleting agent
-  };
+      const matchesSearch =
+        normalizedSearch.length === 0 ||
+        name.includes(normalizedSearch) ||
+        description.includes(normalizedSearch) ||
+        capabilitiesMatch;
 
-  const getStatusCounts = () => {
-    return {
+      const agentStatus = agent.status?.toString().toLowerCase() as AgentStatus | undefined;
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (agentStatus !== undefined && agentStatus === statusFilter);
+
+      const agentType = agent.type?.toString();
+      const matchesType =
+        typeFilter === 'all' ||
+        (agentType !== undefined && agentType === typeFilter);
+
+      return matchesSearch && matchesStatus && matchesType;
+    });
+  }, [agents, normalizedSearch, statusFilter, typeFilter]);
+
+  const dashboardMetrics = useMemo(() => {
+    const metrics = {
       total: agents.length,
-      running: agents.filter(a => a.status === 'running').length,
-      stopped: agents.filter(a => a.status === 'stopped').length,
-      error: agents.filter(a => a.status === 'error').length
+      active: 0,
+      inactive: 0,
+      paused: 0,
+      maintenance: 0,
+      error: 0,
+      averageSuccessRate: null as number | null,
     };
-  };
 
-  const statusCounts = getStatusCounts();
+    let successSum = 0;
+    let successSamples = 0;
+
+    for (const agent of agents) {
+      const status = agent.status?.toString().toLowerCase() as AgentStatus | undefined;
+
+      switch (status) {
+        case 'active':
+          metrics.active += 1;
+          break;
+        case 'inactive':
+          metrics.inactive += 1;
+          break;
+        case 'paused':
+          metrics.paused += 1;
+          break;
+        case 'maintenance':
+          metrics.maintenance += 1;
+          break;
+        case 'error':
+          metrics.error += 1;
+          break;
+        default:
+          break;
+      }
+
+      const successRateValue = agent.performance?.successRate ?? agent.successRate;
+      if (typeof successRateValue === 'number' && !Number.isNaN(successRateValue)) {
+        const normalized = successRateValue <= 1 ? successRateValue * 100 : successRateValue;
+        successSum += normalized;
+        successSamples += 1;
+      }
+    }
+
+    metrics.averageSuccessRate = successSamples > 0
+      ? Math.round(successSum / successSamples)
+      : null;
+
+    return metrics;
+  }, [agents]);
+
+  const handleStartAgent = useCallback(async (id: string) => {
+    setActionInProgress(id);
+    setActionError(null);
+    try {
+      await agentService.updateAgentStatus(id, 'active');
+      await refreshAgents();
+      logger.info('Agent started successfully', { id });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to start agent';
+      setActionError(message);
+      logger.error('Failed to start agent', error instanceof Error ? error : new Error(String(error)), { id });
+    } finally {
+      setActionInProgress(null);
+    }
+  }, [refreshAgents]);
+
+  const handleStopAgent = useCallback(async (id: string) => {
+    setActionInProgress(id);
+    setActionError(null);
+    try {
+      await agentService.updateAgentStatus(id, 'inactive');
+      await refreshAgents();
+      logger.info('Agent stopped successfully', { id });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to stop agent';
+      setActionError(message);
+      logger.error('Failed to stop agent', error instanceof Error ? error : new Error(String(error)), { id });
+    } finally {
+      setActionInProgress(null);
+    }
+  }, [refreshAgents]);
+
+  const handleViewAgent = useCallback((id: string) => {
+    logger.info('Viewing agent details', { id });
+  }, []);
+
+  const handleConfigureAgent = useCallback((id: string) => {
+    logger.info('Configuring agent', { id });
+  }, []);
+
+  const handleDeleteAgent = useCallback(async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this agent?')) {
+      return;
+    }
+
+    setActionInProgress(id);
+    setActionError(null);
+    try {
+      await agentService.deleteAgent(id);
+      await refreshAgents();
+      logger.info('Agent deleted successfully', { id });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete agent';
+      setActionError(message);
+      logger.error('Failed to delete agent', error instanceof Error ? error : new Error(String(error)), { id });
+    } finally {
+      setActionInProgress(null);
+    }
+  }, [refreshAgents]);
+
+  const statusOptions: StatusFilterValue[] = useMemo(
+    () => ['all', 'active', 'inactive', 'paused', 'maintenance', 'error'],
+    []
+  );
+
+  if (agentsLoading && agents.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -345,30 +445,51 @@ export const Agents: React.FC = () => {
         </Button>
       </motion.div>
 
+      {agentsError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Failed to load agents: {agentsError.message}
+        </div>
+      )}
+
+      {actionError && (
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+          <span>{actionError}</span>
+          <button
+            type="button"
+            className="text-yellow-700 hover:text-yellow-900"
+            onClick={() => setActionError(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
           {
             title: 'Total Agents',
-            value: statusCounts.total,
+            value: dashboardMetrics.total,
             icon: CpuChipIcon,
             color: 'gray'
           },
           {
-            title: 'Running',
-            value: statusCounts.running,
+            title: 'Active Agents',
+            value: dashboardMetrics.active,
             icon: CheckCircleIcon,
             color: 'green'
           },
           {
-            title: 'Stopped',
-            value: statusCounts.stopped,
+            title: 'Idle Agents',
+            value: dashboardMetrics.inactive + dashboardMetrics.paused + dashboardMetrics.maintenance,
             icon: ClockIcon,
-            color: 'gray'
+            color: 'yellow'
           },
           {
             title: 'Avg Success Rate',
-            value: `${Math.round(agents.reduce((acc, agent) => acc + agent.successRate, 0) / agents.length)}%`,
+            value: dashboardMetrics.averageSuccessRate !== null
+              ? `${dashboardMetrics.averageSuccessRate}%`
+              : '--',
             icon: ChartBarIcon,
             color: 'blue'
           }
@@ -394,6 +515,15 @@ export const Agents: React.FC = () => {
         ))}
       </div>
 
+      {dashboardMetrics.error > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <ExclamationTriangleIcon className="h-5 w-5" />
+          <span>
+            {dashboardMetrics.error} agent{dashboardMetrics.error === 1 ? '' : 's'} reporting errors. Review their configuration or recent activity.
+          </span>
+        </div>
+      )}
+
       {/* Filters */}
       <Card>
         <Card.Content className="p-6">
@@ -414,13 +544,14 @@ export const Agents: React.FC = () => {
               <FunnelIcon className="h-5 w-5 text-gray-400" />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="aurora-input min-w-[130px]"
+                onChange={(e) => setStatusFilter(e.target.value as StatusFilterValue)}
+                className="aurora-input min-w-[140px]"
               >
-                <option value="all">All Status</option>
-                <option value="running">Running</option>
-                <option value="stopped">Stopped</option>
-                <option value="error">Error</option>
+                {statusOptions.map(option => (
+                  <option key={option} value={option}>
+                    {option === 'all' ? 'All Status' : option.charAt(0).toUpperCase() + option.slice(1)}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -429,14 +560,14 @@ export const Agents: React.FC = () => {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="aurora-input min-w-[150px]"
+                className="aurora-input min-w-[160px]"
               >
                 <option value="all">All Types</option>
-                <option value="frontend">Frontend</option>
-                <option value="api">API</option>
-                <option value="docs">Documentation</option>
-                <option value="codebase-inspector">Codebase Inspector</option>
-                <option value="mcp-integration">MCP Integration</option>
+                {availableTypes.map(typeValue => (
+                  <option key={typeValue} value={typeValue}>
+                    {typeValue.replace(/-/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -467,6 +598,7 @@ export const Agents: React.FC = () => {
                   onView={handleViewAgent}
                   onConfigure={handleConfigureAgent}
                   onDelete={handleDeleteAgent}
+                  isProcessing={actionInProgress === agent.id}
                 />
               </motion.div>
             ))}

@@ -16,30 +16,10 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useApiData } from '@/hooks';
+import { agentService } from '@/services/agentService';
+import { apiClient } from '@/services/api';
+import type { Agent, PaginatedResult } from '@/types';
 import { logger } from '@/utils/logger';
-
-interface Agent {
-  id: string;
-  name: string;
-  type: 'frontend' | 'api' | 'docs' | 'orchestrator' | 'custom';
-  status: 'active' | 'idle' | 'error' | 'stopped';
-  capabilities: string[];
-  lastActivity?: Date;
-  performance: {
-    tasksCompleted: number;
-    averageResponseTime: number;
-    successRate: number;
-    cpuUsage: number;
-    memoryUsage: number;
-  };
-  config: {
-    model: string;
-    systemPrompt: string;
-    allowedTools: string[];
-    maxTokens: number;
-    temperature: number;
-  };
-}
 
 interface WorkflowExecution {
   id: string;
@@ -61,14 +41,38 @@ export const AgentManagement: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch agents data
-  const { data: agentsData, loading: agentsLoading, refetch: refetchAgents } = useApiData<Agent[]>('/api/agents');
-  const { data: executionsData, loading: executionsLoading, refetch: refetchExecutions } = useApiData<WorkflowExecution[]>('/api/workflows/executions');
+  const {
+    data: agentsResult,
+    loading: agentsLoading,
+    error: agentsError,
+    refresh: refreshAgents,
+  } = useApiData<PaginatedResult<Agent>>(
+    () => agentService.listAgents({ limit: 100 }),
+    {
+      cacheKey: 'admin-agents',
+      retryAttempts: 2,
+    }
+  );
+
+  const {
+    data: executionsData,
+    loading: executionsLoading,
+    error: executionsError,
+    refresh: refreshExecutions,
+  } = useApiData<WorkflowExecution[]>(
+    () => apiClient.get<WorkflowExecution[]>('/v1/workflows/executions'),
+    {
+      cacheKey: 'workflow-executions',
+      retryAttempts: 1,
+      immediate: false,
+    }
+  );
 
   useEffect(() => {
-    if (agentsData) {
-      setAgents(agentsData);
+    if (agentsResult?.items) {
+      setAgents(agentsResult.items);
     }
-  }, [agentsData]);
+  }, [agentsResult]);
 
   useEffect(() => {
     if (executionsData) {
@@ -76,20 +80,24 @@ export const AgentManagement: React.FC = () => {
     }
   }, [executionsData]);
 
+  useEffect(() => {
+    void refreshExecutions();
+  }, [refreshExecutions]);
+
   // Real-time updates via polling (in production, use WebSocket)
   useEffect(() => {
     const interval = setInterval(() => {
-      refetchAgents();
-      refetchExecutions();
+      void refreshAgents();
+      void refreshExecutions();
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [refetchAgents, refetchExecutions]);
+  }, [refreshAgents, refreshExecutions]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([refetchAgents(), refetchExecutions()]);
+  await Promise.all([refreshAgents(), refreshExecutions()]);
       logger.info('Agent data refreshed successfully');
     } catch (error) {
       logger.error('Failed to refresh agent data', error instanceof Error ? error : new Error(String(error)));
@@ -101,9 +109,16 @@ export const AgentManagement: React.FC = () => {
   const handleAgentAction = async (agentId: string, action: 'start' | 'stop' | 'restart') => {
     try {
       logger.info(`Performing ${action} action on agent ${agentId}`);
-      // TODO: Implement API calls for agent control
-      await fetch(`/api/agents/${agentId}/${action}`, { method: 'POST' });
-      await refetchAgents();
+      if (action === 'restart') {
+        await agentService.updateAgentStatus(agentId, 'inactive');
+        await agentService.updateAgentStatus(agentId, 'active');
+      } else if (action === 'start') {
+        await agentService.updateAgentStatus(agentId, 'active');
+      } else {
+        await agentService.updateAgentStatus(agentId, 'inactive');
+      }
+
+      await refreshAgents();
     } catch (error) {
       logger.error(`Failed to ${action} agent`, error instanceof Error ? error : new Error(String(error)));
     }
@@ -115,8 +130,8 @@ export const AgentManagement: React.FC = () => {
     }
 
     try {
-      await fetch(`/api/agents/${agentId}`, { method: 'DELETE' });
-      await refetchAgents();
+      await agentService.deleteAgent(agentId);
+      await refreshAgents();
       logger.info(`Agent ${agentId} deleted successfully`);
     } catch (error) {
       logger.error('Failed to delete agent', error instanceof Error ? error : new Error(String(error)));
@@ -125,21 +140,33 @@ export const AgentManagement: React.FC = () => {
 
   const getStatusColor = (status: Agent['status']) => {
     switch (status) {
-      case 'active': return 'text-green-600 bg-green-100';
-      case 'idle': return 'text-yellow-600 bg-yellow-100';
-      case 'error': return 'text-red-600 bg-red-100';
-      case 'stopped': return 'text-gray-600 bg-gray-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'active':
+        return 'text-green-600 gb-green-100';
+      case 'paused':
+        return 'text-yellow-600 gb-yellow-100';
+      case 'error':
+        return 'text-red-600 gb-red-100';
+      case 'inactive':
+      case 'maintenance':
+        return 'text-gray-600 gb-gray-100';
+      default:
+        return 'text-gray-600 gb-gray-100';
     }
   };
 
   const getStatusIcon = (status: Agent['status']) => {
     switch (status) {
-      case 'active': return <CheckCircle className="w-4 h-4" />;
-      case 'idle': return <Clock className="w-4 h-4" />;
-      case 'error': return <AlertTriangle className="w-4 h-4" />;
-      case 'stopped': return <Square className="w-4 h-4" />;
-      default: return <Clock className="w-4 h-4" />;
+      case 'active':
+        return <CheckCircle className="w-4 h-4" />;
+      case 'paused':
+        return <Clock className="w-4 h-4" />;
+      case 'error':
+        return <AlertTriangle className="w-4 h-4" />;
+      case 'inactive':
+      case 'maintenance':
+        return <Square className="w-4 h-4" />;
+      default:
+        return <Clock className="w-4 h-4" />;
     }
   };
 
@@ -165,14 +192,14 @@ export const AgentManagement: React.FC = () => {
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 gb-white hover:gb-gray-50 disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
           </button>
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white gb-blue-600 hover:gb-blue-700"
           >
             <Plus className="w-4 h-4 mr-2" />
             Create Agent
@@ -180,11 +207,23 @@ export const AgentManagement: React.FC = () => {
         </div>
       </div>
 
+        {agentsError && (
+          <div className="rounded-lg border border-red-200 gb-red-50 px-4 py-3 text-sm text-red-700">
+            Failed to load agents: {agentsError.message}
+          </div>
+        )}
+
+        {executionsError && (
+          <div className="rounded-lg border border-yellow-200 gb-yellow-50 px-4 py-3 text-sm text-yellow-700">
+            Workflow execution data is temporarily unavailable.
+          </div>
+        )}
+
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="gb-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
+            <div className="p-2 gb-green-100 rounded-lg">
               <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
             <div className="ml-4">
@@ -196,9 +235,9 @@ export const AgentManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="gb-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
+            <div className="p-2 gb-blue-100 rounded-lg">
               <Activity className="w-6 h-6 text-blue-600" />
             </div>
             <div className="ml-4">
@@ -210,32 +249,42 @@ export const AgentManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="gb-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
+            <div className="p-2 gb-purple-100 rounded-lg">
               <BarChart3 className="w-6 h-6 text-purple-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Avg Success Rate</p>
               <p className="text-2xl font-bold text-gray-900">
                 {agents.length > 0
-                  ? Math.round(agents.reduce((sum, agent) => sum + agent.performance.successRate, 0) / agents.length)
+                  ? Math.round(
+                      agents.reduce((sum, agent) => {
+                        const successRate = agent.performance?.successRate ?? 0;
+                        return sum + successRate;
+                      }, 0) / agents.length
+                    )
                   : 0}%
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="gb-white rounded-xl border border-gray-200 p-6">
           <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
+            <div className="p-2 gb-yellow-100 rounded-lg">
               <Cpu className="w-6 h-6 text-yellow-600" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Avg CPU Usage</p>
               <p className="text-2xl font-bold text-gray-900">
                 {agents.length > 0
-                  ? Math.round(agents.reduce((sum, agent) => sum + agent.performance.cpuUsage, 0) / agents.length)
+                  ? Math.round(
+                      agents.reduce((sum, agent) => {
+                        const cpuUsage = agent.performance?.cpuUsage ?? 0;
+                        return sum + cpuUsage;
+                      }, 0) / agents.length
+                    )
                   : 0}%
               </p>
             </div>
@@ -244,14 +293,14 @@ export const AgentManagement: React.FC = () => {
       </div>
 
       {/* Agents Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="gb-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Registered Agents</h3>
         </div>
 
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="gb-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Agent
@@ -270,13 +319,13 @@ export const AgentManagement: React.FC = () => {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="gb-white divide-y divide-gray-200">
               {agents.map((agent) => (
-                <tr key={agent.id} className="hover:bg-gray-50">
+                <tr key={agent.id} className="hover:gb-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
-                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <div className="h-10 w-10 rounded-full gb-blue-100 flex items-center justify-center">
                           <Activity className="h-6 w-6 text-blue-600" />
                         </div>
                       </div>
@@ -294,16 +343,20 @@ export const AgentManagement: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
-                      <div>{agent.performance.tasksCompleted} tasks</div>
-                      <div className="text-gray-500">{agent.performance.successRate}% success</div>
+                      <div>{agent.performance?.tasksCompleted ?? 0} tasks</div>
+                      <div className="text-gray-500">{agent.performance?.successRate ?? 0}% success</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {agent.lastActivity ? new Date(agent.lastActivity).toLocaleString() : 'Never'}
+                    {agent.lastActivity
+                      ? new Date(agent.lastActivity).toLocaleString()
+                      : agent.updatedAt
+                        ? new Date(agent.updatedAt).toLocaleString()
+                        : 'Never'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
-                      {agent.status === 'stopped' ? (
+                      {agent.status !== 'active' ? (
                         <button
                           onClick={() => handleAgentAction(agent.id, 'start')}
                           className="text-green-600 hover:text-green-900"
@@ -361,7 +414,7 @@ export const AgentManagement: React.FC = () => {
       </div>
 
       {/* Active Workflows */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="gb-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Active Workflows</h3>
         </div>
@@ -387,7 +440,7 @@ export const AgentManagement: React.FC = () => {
                         )}
                       </div>
                       <div className="text-right">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium gb-blue-100 text-blue-800">
                           {execution.status}
                         </span>
                       </div>
@@ -397,9 +450,9 @@ export const AgentManagement: React.FC = () => {
                         <span>Progress</span>
                         <span>{execution.progress}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full gb-gray-200 rounded-full h-2">
                         <div
-                          className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                          className="gb-blue-600 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${execution.progress}%` }}
                         ></div>
                       </div>
